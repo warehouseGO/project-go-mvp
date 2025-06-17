@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+enum Role {
+  OWNER
+  SITE_INCHARGE
+  SITE_SUPERVISOR
+  CLUSTER_SUPERVISOR
+}
+
+enum JobStatus {
+  COMPLETED
+  IN_PROGRESS
+  CONSTRAINT
+}
+
+// Main Models
+model User {
+  id           Int        @id @default(autoincrement())
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  name         String
+  phone        String?
+  role         Role
+  status       UserStatus @default(PENDING)
+  siteId       Int?       @map("site_id") // null for OWNER role
+  superiorId   Int?       @map("superior_id") // immediate superior
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  site              Site?     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  superior          User?     @relation("UserHierarchy", fields: [superiorId], references: [id])
+  subordinates      User[]    @relation("UserHierarchy")
+  createdSites      Site[]    @relation("SiteCreator")
+  assignedDevices   Device[]  @relation("DeviceAssignee")
+  createdDevices    Device[]  @relation("DeviceCreator")
+
+  @@map("users")
+}
+
+model Site {
+  id          Int      @id @default(autoincrement())
+  name        String
+  location    String?
+  description String?
+  createdById Int      @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  createdBy User     @relation("SiteCreator", fields: [createdById], references: [id])
+  users     User[]
+  devices   Device[]
+
+  @@map("sites")
+}
+
+model Device {
+  id           Int      @id @default(autoincrement())
+  serialNumber String   @unique @map("serial_number")
+  name         String
+  type         String   // "Heat Exchanger", "Pump", etc.
+  subtype      String?  // "Floating", "Fixed", etc.
+  siteId       Int      @map("site_id")
+  assignedTo   Int?     @map("assigned_to") // Cluster Supervisor ID
+  createdBy    Int      @map("created_by")  // Site In-Charge ID
+  attributes   Json?    // Flexible key-value pairs for device specs
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  site         Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  assignedUser User?  @relation("DeviceAssignee", fields: [assignedTo], references: [id])
+  creator      User   @relation("DeviceCreator", fields: [createdBy], references: [id])
+  jobs         Job[]
+
+  @@map("devices")
+}
+
+model Job {
+  id        Int       @id @default(autoincrement())
+  deviceId  Int       @map("device_id")
+  name      String
+  status    JobStatus @default(IN_PROGRESS)
+  comment   String?   // Required when status is 'CONSTRAINT'
+  updatedBy Int?      @map("updated_by") // Last person who updated status
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  device  Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  updater User?  @relation(fields: [updatedBy], references: [id])
+
+  @@map("jobs")
+}
