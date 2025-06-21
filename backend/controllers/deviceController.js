@@ -10,7 +10,12 @@ exports.getDevices = async (req, res) => {
     } else if (role === "CLUSTER_SUPERVISOR" || role === "SITE_SUPERVISOR") {
       where = { assignedTo: parseInt(userId) };
     }
-    const devices = await prisma.device.findMany({ where });
+    const devices = await prisma.device.findMany({
+      where,
+      include: {
+        jobs: true,
+      },
+    });
     res.json(devices);
   } catch (err) {
     console.error(err);

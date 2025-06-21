@@ -6,7 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
+  
 }
 
 datasource db {
@@ -109,7 +109,7 @@ model Job {
 
   // Relations
   device  Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  updater User?  @relation(fields: [updatedBy], references: [id])
+  
 
   @@map("jobs")
 }

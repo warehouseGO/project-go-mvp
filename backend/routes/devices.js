@@ -12,8 +12,18 @@ router.post(
   deviceController.createDevice
 );
 router.get("/:id", auth, deviceController.getDeviceDetails);
-router.put("/:id", auth, deviceController.updateDevice);
-router.delete("/:id", auth, deviceController.deleteDevice);
+router.put(
+  "/:id",
+  auth,
+  authorize("SITE_INCHARGE"),
+  deviceController.updateDevice
+);
+router.delete(
+  "/:id",
+  auth,
+  authorize("SITE_INCHARGE"),
+  deviceController.deleteDevice
+);
 router.post("/:id/assign", auth, deviceController.assignDevice);
 
 module.exports = router;
