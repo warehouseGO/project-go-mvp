@@ -3,20 +3,18 @@ const prisma = new PrismaClient();
 
 exports.getDevices = async (req, res) => {
   try {
-    const { role, siteId, userId } = req.query;
-    let where = {};
-    if (role === "SITE_INCHARGE") {
-      where = { siteId: parseInt(siteId) };
-    } else if (role === "CLUSTER_SUPERVISOR" || role === "SITE_SUPERVISOR") {
-      where = { assignedTo: parseInt(userId) };
-    }
+    const { userId } = req.user;
+    const where = { siteSupervisorId: parseInt(userId) };
     const devices = await prisma.device.findMany({
       where,
       include: {
         jobs: true,
       },
     });
-    res.json(devices);
+    const subordinates = await prisma.user.findMany({
+      where: { superiorId: parseInt(userId) },
+    });
+    res.json({ devices, subordinates });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch devices" });
@@ -25,8 +23,19 @@ exports.getDevices = async (req, res) => {
 
 exports.createDevice = async (req, res) => {
   try {
-    const { serialNumber, name, type, subtype, siteId, attributes } = req.body;
+    const {
+      serialNumber,
+      name,
+      type,
+      subtype,
+      siteId,
+      attributes,
+      siteSupervisorId,
+      assignedTo, // cluster supervisor
+      jobs = [], // array of { name, status, comment }
+    } = req.body;
     const { userId } = req.user; // Assume JWT payload includes userId
+
     const device = await prisma.device.create({
       data: {
         serialNumber,
@@ -36,7 +45,17 @@ exports.createDevice = async (req, res) => {
         siteId: parseInt(siteId),
         createdBy: userId,
         attributes,
+        siteSupervisorId: siteSupervisorId ? parseInt(siteSupervisorId) : null,
+        assignedTo: assignedTo ? parseInt(assignedTo) : null,
+        jobs: {
+          create: jobs.map((job) => ({
+            name: job.name,
+            status: job.status || "IN_PROGRESS",
+            comment: job.comment || null,
+          })),
+        },
       },
+      include: { jobs: true },
     });
     res.status(201).json(device);
   } catch (err) {
@@ -98,5 +117,85 @@ exports.assignDevice = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to assign device" });
+  }
+};
+
+// Bulk assign devices to a site supervisor
+exports.assignDevicesToSiteSupervisor = async (req, res) => {
+  try {
+    const { deviceIds, siteSupervisorId } = req.body;
+
+    // deviceIds: array of device ids
+    const updated = await prisma.device.updateMany({
+      where: { id: { in: deviceIds.map((id) => parseInt(id)) } },
+      data: { siteSupervisorId: parseInt(siteSupervisorId) },
+    });
+    res.json({ message: "Devices assigned", count: updated.count });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to assign devices" });
+  }
+};
+
+// Bulk assign devices to a cluster supervisor
+exports.assignDevicesToClusterSupervisor = async (req, res) => {
+  try {
+    const { deviceIds, clusterSupervisorId } = req.body; // deviceIds: array of device ids
+    const updated = await prisma.device.updateMany({
+      where: { id: { in: deviceIds.map((id) => parseInt(id)) } },
+      data: { assignedTo: parseInt(clusterSupervisorId) },
+    });
+    res.json({ message: "Devices assigned", count: updated.count });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to assign devices" });
+  }
+};
+
+// Add jobs to a device
+exports.addJobsToDevice = async (req, res) => {
+  try {
+    const { id } = req.params; // device id
+    const { jobs } = req.body; // array of { name, status, comment }
+    const createdJobs = await prisma.job.createMany({
+      data: jobs.map((job) => ({
+        deviceId: parseInt(id),
+        name: job.name,
+        status: job.status || "IN_PROGRESS",
+        comment: job.comment || null,
+      })),
+    });
+    res.json({ message: "Jobs added", count: createdJobs.count });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to add jobs" });
+  }
+};
+
+// Update a job for a device
+exports.updateJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { name, status, comment } = req.body;
+    const job = await prisma.job.update({
+      where: { id: parseInt(jobId) },
+      data: { name, status, comment },
+    });
+    res.json(job);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update job" });
+  }
+};
+
+// Delete a job from a device
+exports.deleteJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    await prisma.job.delete({ where: { id: parseInt(jobId) } });
+    res.json({ message: "Job deleted" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete job" });
   }
 };

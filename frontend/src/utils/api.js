@@ -64,13 +64,23 @@ export const sitesAPI = {
 
 // Devices API calls
 export const devicesAPI = {
-  getDevices: (params) => api.get("/devices", { params }),
+  getDevices: () => api.get("/devices"),
   createDevice: (deviceData) => api.post("/devices", deviceData),
   getDeviceDetails: (id) => api.get(`/devices/${id}`),
   updateDevice: (id, deviceData) => api.put(`/devices/${id}`, deviceData),
   deleteDevice: (id) => api.delete(`/devices/${id}`),
   assignDevice: (id, assignedTo) =>
     api.post(`/devices/${id}/assign`, { assignedTo }),
+  assignDevicesToClusterSupervisor: ({ deviceIds, clusterSupervisorId }) =>
+    api.post("/devices/assign-cluster-supervisor", {
+      deviceIds,
+      clusterSupervisorId,
+    }),
+  assignDevicesToSiteSupervisor: ({ deviceIds, siteSupervisorId }) =>
+    api.post("/devices/assign-site-supervisor", {
+      deviceIds,
+      siteSupervisorId,
+    }),
 };
 
 // Jobs API calls
@@ -88,6 +98,7 @@ export const dashboardAPI = {
     api.get(`/dashboard/site-incharge/${siteId}`),
   siteSupervisorDashboard: () => api.get("/dashboard/site-supervisor"),
   clusterSupervisorDashboard: () => api.get("/dashboard/cluster-supervisor"),
+  fullAssignSite: (data) => api.post("/sites/full-assign", data),
 };
 
 export default api;

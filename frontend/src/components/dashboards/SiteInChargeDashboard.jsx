@@ -91,68 +91,6 @@ const SiteInChargeDashboard = () => {
           </p>
         </div>
       </div>
-
-      {/* Devices Section */}
-      <div className="card">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Devices</h2>
-          <button className="btn-primary">Add Device</button>
-        </div>
-
-        {siteData.devices.length === 0 ? (
-          <p className="text-gray-500">No devices created yet.</p>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {siteData.devices.map((device) => (
-              <div
-                key={device.id}
-                className="border border-gray-200 rounded-lg p-4"
-              >
-                <h3 className="font-semibold text-gray-900">{device.name}</h3>
-                <p className="text-sm text-gray-600">
-                  {device.type} • {device.subtype}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Serial: {device.serialNumber}
-                </p>
-                <div className="mt-2">
-                  <span className="text-sm text-gray-600">
-                    Jobs: {device.jobs.length}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Users Section */}
-      <div className="card">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Users</h2>
-          <button className="btn-primary">Manage Users</button>
-        </div>
-
-        {siteData.users.length === 0 ? (
-          <p className="text-gray-500">No users assigned to this site.</p>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {siteData.users.map((user) => (
-              <div
-                key={user.id}
-                className="border border-gray-200 rounded-lg p-4"
-              >
-                <h3 className="font-semibold text-gray-900">{user.name}</h3>
-                <p className="text-sm text-gray-600">{user.email}</p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-sm text-gray-600">{user.role}</span>
-                  <StatusBadge status={user.status} type="user" />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 };

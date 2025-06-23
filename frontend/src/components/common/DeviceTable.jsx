@@ -11,16 +11,35 @@ const DeviceTable = ({
   getAssignedUser = null,
   showActions = true,
   customJobTable = null,
+  enableMultiSelect = false,
+  assignableUsers = [],
+  onBulkAssign = null,
+  assignLabel = "Assign to User",
+  assignLoading = false,
 }) => {
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [assignUserId, setAssignUserId] = useState("");
+  const [assignError, setAssignError] = useState("");
+
   const getDeviceStatus = (device) => {
-    if (!device.jobs || device.jobs.length === 0) return "IN_PROGRESS";
+    if (!device.jobs || device.jobs.length === 0) {
+      return "IN_PROGRESS";
+    }
 
     const statuses = device.jobs.map((j) => j.status);
-    if (statuses.every((s) => s === JOB_STATUS.COMPLETED))
+
+    if (statuses.every((s) => s === JOB_STATUS.COMPLETED)) {
       return JOB_STATUS.COMPLETED;
-    if (statuses.includes(JOB_STATUS.CONSTRAINT)) return JOB_STATUS.CONSTRAINT;
-    if (statuses.includes(JOB_STATUS.IN_PROGRESS))
+    }
+
+    if (statuses.includes(JOB_STATUS.CONSTRAINT)) {
+      return JOB_STATUS.CONSTRAINT;
+    }
+
+    if (statuses.includes(JOB_STATUS.IN_PROGRESS)) {
       return JOB_STATUS.IN_PROGRESS;
+    }
     return "IN_PROGRESS";
   };
 
@@ -68,21 +87,18 @@ const DeviceTable = ({
   );
 
   const getTableHeaders = () => {
-    const headers = [
-      { key: "serialNumber", label: "Serial No" },
-      { key: "name", label: "Name" },
-      { key: "type", label: "Type" },
-      { key: "subtype", label: "Subtype" },
-    ];
-
+    const headers = [];
+    if (enableMultiSelect) headers.push({ key: "select", label: "" });
+    headers.push({ key: "serialNumber", label: "Serial No" });
+    headers.push({ key: "name", label: "Name" });
+    headers.push({ key: "type", label: "Type" });
+    headers.push({ key: "subtype", label: "Subtype" });
     if (showAssignedTo) {
       headers.push({ key: "assignedTo", label: "Assigned To" });
     }
-
     headers.push({ key: "status", label: "Status" });
     headers.push({ key: "attributes", label: "Attributes" });
     headers.push({ key: "jobs", label: "Jobs" });
-
     return headers;
   };
 
@@ -90,11 +106,55 @@ const DeviceTable = ({
     let span = 4; // serial, name, type, subtype
     if (showAssignedTo) span += 1;
     span += 3; // status, attributes, jobs
+    if (enableMultiSelect) span += 1;
     return span;
+  };
+
+  const handleSelectDevice = (deviceId, checked) => {
+    setSelectedDeviceIds((prev) =>
+      checked ? [...prev, deviceId] : prev.filter((id) => id !== deviceId)
+    );
+  };
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedDeviceIds(devices.map((d) => d.id));
+    } else {
+      setSelectedDeviceIds([]);
+    }
+  };
+  const openAssignModal = () => {
+    setAssignUserId("");
+    setAssignError("");
+    setAssignModalOpen(true);
+  };
+  const handleBulkAssign = () => {
+    if (!assignUserId) {
+      setAssignError("Please select a user.");
+      return;
+    }
+    if (onBulkAssign) {
+      onBulkAssign(selectedDeviceIds, assignUserId);
+    }
+    setAssignModalOpen(false);
+    setSelectedDeviceIds([]);
   };
 
   return (
     <div className="overflow-x-auto rounded-lg shadow border border-gray-200 bg-white">
+      {enableMultiSelect && (
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 bg-gray-50">
+          <div className="text-sm text-gray-700">
+            {selectedDeviceIds.length} selected
+          </div>
+          <button
+            className="btn-primary"
+            disabled={selectedDeviceIds.length === 0}
+            onClick={openAssignModal}
+          >
+            {assignLabel}
+          </button>
+        </div>
+      )}
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
@@ -112,6 +172,17 @@ const DeviceTable = ({
           {devices.map((device) => (
             <React.Fragment key={device.id}>
               <tr className="hover:bg-gray-50 transition">
+                {enableMultiSelect && (
+                  <td className="px-2 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedDeviceIds.includes(device.id)}
+                      onChange={(e) =>
+                        handleSelectDevice(device.id, e.target.checked)
+                      }
+                    />
+                  </td>
+                )}
                 <td className="px-4 py-3 text-sm text-gray-900">
                   {device.serialNumber}
                 </td>
@@ -166,6 +237,49 @@ const DeviceTable = ({
           ))}
         </tbody>
       </table>
+      {assignModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+            <h2 className="text-lg font-semibold mb-4">{assignLabel}</h2>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Select User
+              </label>
+              <select
+                className="input-field w-full"
+                value={assignUserId}
+                onChange={(e) => setAssignUserId(e.target.value)}
+              >
+                <option value="">Select...</option>
+                {assignableUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {assignError && (
+              <div className="text-xs text-red-600 mb-2">{assignError}</div>
+            )}
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                className="btn-secondary"
+                onClick={() => setAssignModalOpen(false)}
+                disabled={assignLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={handleBulkAssign}
+                disabled={assignLoading || !assignUserId}
+              >
+                {assignLoading ? "Assigning..." : "Assign"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

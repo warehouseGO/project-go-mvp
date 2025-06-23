@@ -5,7 +5,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Header from "./components/common/Header";
 import Sidebar from "./components/common/Sidebar";
@@ -14,13 +14,17 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import ClusterSupervisorDetails from "./pages/ClusterSupervisorDetails";
 import Devices from "./pages/Devices";
+import SiteSupervisorDevices from "./pages/SiteSupervisorDevices";
+import { ROLES } from "./utils/constants";
 
 const Layout = ({ children }) => {
+  const { getUserRole } = useAuth();
+  const userRole = getUserRole();
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       <div className="flex">
-        <Sidebar />
+        {userRole !== ROLES.SITE_SUPERVISOR && <Sidebar />}
         <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
@@ -65,6 +69,17 @@ const App = () => {
               <ProtectedRoute>
                 <Layout>
                   <ClusterSupervisorDetails />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/site-supervisor/devices"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SiteSupervisorDevices />
                 </Layout>
               </ProtectedRoute>
             }

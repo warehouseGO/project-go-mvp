@@ -55,6 +55,7 @@ model User {
   createdSites      Site[]    @relation("SiteCreator")
   assignedDevices   Device[]  @relation("DeviceAssignee")
   createdDevices    Device[]  @relation("DeviceCreator")
+  siteSupervisorDevices Device[] @relation("DeviceSiteSupervisor")
 
   @@map("users")
 }
@@ -82,6 +83,7 @@ model Device {
   type         String   // "Heat Exchanger", "Pump", etc.
   subtype      String?  // "Floating", "Fixed", etc.
   siteId       Int      @map("site_id")
+  siteSupervisorId Int? @map("site_supervisor_id") // Site Supervisor ID (new)
   assignedTo   Int?     @map("assigned_to") // Cluster Supervisor ID
   createdBy    Int      @map("created_by")  // Site In-Charge ID
   attributes   Json?    // Flexible key-value pairs for device specs
@@ -90,11 +92,16 @@ model Device {
 
   // Relations
   site         Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  siteSupervisor User? @relation("DeviceSiteSupervisor", fields: [siteSupervisorId], references: [id])
   assignedUser User?  @relation("DeviceAssignee", fields: [assignedTo], references: [id])
   creator      User   @relation("DeviceCreator", fields: [createdBy], references: [id])
   jobs         Job[]
 
   @@map("devices")
+  @@index([siteId])
+  @@index([siteSupervisorId])
+  @@index([assignedTo])
+  @@index([serialNumber])
 }
 
 model Job {

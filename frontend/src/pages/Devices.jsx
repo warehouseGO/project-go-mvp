@@ -6,6 +6,8 @@ import DeviceTable from "../components/common/DeviceTable";
 import DeviceFilters from "../components/common/DeviceFilters";
 import AddDeviceModal from "../components/common/AddDeviceModal";
 import AttributesModal from "../components/common/AttributesModal";
+import StatusBadge from "../components/common/StatusBadge";
+import { JOB_STATUS } from "../utils/constants";
 
 const Devices = () => {
   const { user } = useAuth();
@@ -13,6 +15,10 @@ const Devices = () => {
   const [siteData, setSiteData] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignSupervisorId, setAssignSupervisorId] = useState("");
+  const [assignError, setAssignError] = useState("");
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -54,6 +60,26 @@ const Devices = () => {
     } finally {
       setLoading(false);
     }
+  };
+  const getDeviceStatus = (device) => {
+    if (!device.jobs || device.jobs.length === 0) {
+      return "IN_PROGRESS";
+    }
+
+    const statuses = device.jobs.map((j) => j.status);
+
+    if (statuses.every((s) => s === JOB_STATUS.COMPLETED)) {
+      return JOB_STATUS.COMPLETED;
+    }
+
+    if (statuses.includes(JOB_STATUS.CONSTRAINT)) {
+      return JOB_STATUS.CONSTRAINT;
+    }
+
+    if (statuses.includes(JOB_STATUS.IN_PROGRESS)) {
+      return JOB_STATUS.IN_PROGRESS;
+    }
+    return "IN_PROGRESS";
   };
 
   // Get all site supervisors and cluster supervisors for dropdowns
@@ -176,6 +202,24 @@ const Devices = () => {
     ...new Set(devices.map((d) => d.subtype).filter(Boolean)),
   ];
 
+  // Bulk assign logic for Site In-Charge
+  const handleBulkAssign = async (deviceIds, supervisorId) => {
+    setAssignLoading(true);
+    setAssignError("");
+
+    try {
+      await devicesAPI.assignDevicesToSiteSupervisor({
+        deviceIds,
+        siteSupervisorId: supervisorId,
+      });
+      fetchData();
+    } catch (err) {
+      setAssignError("Failed to assign devices.");
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
   if (loading) return <LoadingSpinner size="lg" />;
   if (error) return <div className="text-red-600">{error}</div>;
 
@@ -191,9 +235,11 @@ const Devices = () => {
             Manage and monitor all devices in your site
           </p>
         </div>
-        <button className="btn-primary" onClick={() => setShowAddModal(true)}>
-          + Add New Device
-        </button>
+        <div className="flex gap-2">
+          <button className="btn-primary" onClick={() => setShowAddModal(true)}>
+            + Add New Device
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -233,6 +279,11 @@ const Devices = () => {
             showAssignedTo={true}
             getAssignedUser={getAssignedUser}
             showActions={true}
+            enableMultiSelect={true}
+            assignableUsers={siteSupervisors}
+            onBulkAssign={handleBulkAssign}
+            assignLabel="Assign to Site Supervisor"
+            assignLoading={assignLoading}
           />
         </div>
       )}
@@ -243,6 +294,7 @@ const Devices = () => {
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddDevice}
         loading={addLoading}
+        siteSupervisors={siteSupervisors}
       />
 
       {/* Attributes Modal */}

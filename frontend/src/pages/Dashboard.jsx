@@ -5,6 +5,7 @@ import OwnerDashboard from "../components/dashboards/OwnerDashboard";
 import SiteInChargeDashboard from "../components/dashboards/SiteInChargeDashboard";
 import SiteSupervisorDashboard from "../components/dashboards/SiteSupervisorDashboard";
 import ClusterSupervisorDashboard from "../components/dashboards/ClusterSupervisorDashboard";
+import SiteSupervisorDevices from "./SiteSupervisorDevices";
 
 const Dashboard = () => {
   const { getUserRole } = useAuth();

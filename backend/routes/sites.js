@@ -8,5 +8,11 @@ router.get("/", auth, siteController.getSites);
 router.post("/", auth, authorize("OWNER"), siteController.createSite);
 router.get("/:id", auth, siteController.getSiteDetails);
 router.put("/:id", auth, siteController.updateSite);
+router.post(
+  "/full-assign",
+  auth,
+  authorize("OWNER"),
+  siteController.fullAssignSite
+);
 
 module.exports = router;
