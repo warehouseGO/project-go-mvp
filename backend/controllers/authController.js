@@ -6,9 +6,19 @@ const prisma = new PrismaClient();
 
 exports.register = async (req, res) => {
   try {
-    const { email, password, name, phone, superiorId } = req.body;
+    const { email, password, name, phone, superiorId, role } = req.body;
     if (!email || !password || !name) {
       return res.status(400).json({ error: "Missing required fields" });
+    }
+    if (
+      !role ||
+      ![
+        Role.SITE_INCHARGE,
+        Role.SITE_SUPERVISOR,
+        Role.CLUSTER_SUPERVISOR,
+      ].includes(role)
+    ) {
+      return res.status(400).json({ error: "Invalid or missing role" });
     }
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -22,7 +32,7 @@ exports.register = async (req, res) => {
         name,
         phone,
         superiorId,
-        role: Role.SITE_SUPERVISOR, // Default role, can be changed later
+        role,
         status: UserStatus.PENDING,
       },
     });

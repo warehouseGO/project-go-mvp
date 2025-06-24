@@ -13,7 +13,7 @@ router.get(
 router.get(
   "/site-incharge/:siteId",
   auth,
-  authorize("SITE_INCHARGE"),
+  authorize(["SITE_INCHARGE", "OWNER"]),
   dashboardController.siteInChargeDashboard
 );
 router.get(

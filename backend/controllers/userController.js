@@ -20,7 +20,7 @@ exports.getPendingUsers = async (req, res) => {
   const { superiorId } = req.query;
   try {
     const pendingUsers = await prisma.user.findMany({
-      where: { status: UserStatus.PENDING, superiorId },
+      where: { status: UserStatus.PENDING, superiorId: parseInt(superiorId) },
     });
     res.json(pendingUsers);
   } catch (err) {
@@ -32,11 +32,22 @@ exports.getPendingUsers = async (req, res) => {
 exports.approveUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await prisma.user.update({
+    // Find the user and their superior
+    const user = await prisma.user.findUnique({
       where: { id: parseInt(id) },
-      data: { status: UserStatus.ACTIVE },
+      include: { superior: true },
     });
-    res.json(user);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    // Get the superior's siteId (if any)
+    const siteId = user.superior ? user.superior.siteId : null;
+    // Approve the user and set their siteId
+    const updatedUser = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { status: UserStatus.ACTIVE, siteId },
+    });
+    res.json(updatedUser);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to approve user" });
@@ -78,14 +89,22 @@ exports.getHierarchy = async (req, res) => {
 
 exports.assignSubordinate = async (req, res) => {
   try {
-    const { subordinateId, superiorId } = req.body;
-    const user = await prisma.user.update({
-      where: { id: parseInt(subordinateId) },
+    const { subordinateIds, superiorId } = req.body;
+    if (!Array.isArray(subordinateIds) || subordinateIds.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "subordinateIds must be a non-empty array" });
+    }
+    if (!superiorId) {
+      return res.status(400).json({ error: "superiorId is required" });
+    }
+    const updated = await prisma.user.updateMany({
+      where: { id: { in: subordinateIds.map(Number) } },
       data: { superiorId: parseInt(superiorId) },
     });
-    res.json(user);
+    res.json({ count: updated.count });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to assign subordinate" });
+    res.status(500).json({ error: "Failed to assign subordinates" });
   }
 };

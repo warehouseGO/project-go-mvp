@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import LoadingSpinner from "../common/LoadingSpinner";
 
 const LoginForm = () => {
@@ -103,6 +103,15 @@ const LoginForm = () => {
             </button>
           </div>
         </form>
+        <div className="mt-4 text-center">
+          <span className="text-sm text-gray-600">Don't have an account? </span>
+          <Link
+            to="/register"
+            className="text-blue-600 hover:underline font-medium"
+          >
+            Register
+          </Link>
+        </div>
       </div>
     </div>
   );

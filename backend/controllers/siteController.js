@@ -41,7 +41,18 @@ exports.getSiteDetails = async (req, res) => {
     const { id } = req.params;
     const site = await prisma.site.findUnique({
       where: { id: parseInt(id) },
-      include: { users: true, devices: true },
+      include: {
+        users: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            status: true,
+          },
+        },
+        devices: true,
+      },
     });
     if (!site) return res.status(404).json({ error: "Site not found" });
     res.json(site);
@@ -54,15 +65,100 @@ exports.getSiteDetails = async (req, res) => {
 exports.updateSite = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, location, description } = req.body;
-    const site = await prisma.site.update({
-      where: { id: parseInt(id) },
-      data: { name, location, description },
+    const {
+      name,
+      location,
+      description,
+      siteInCharge,
+      siteSupervisors = [],
+      clusterSupervisors = [],
+    } = req.body;
+    const { userId } = req.user; // Owner's userId
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Check if site exists and user is owner
+      const existingSite = await tx.site.findUnique({
+        where: { id: parseInt(id) },
+        include: { createdBy: true },
+      });
+      if (!existingSite) {
+        throw new Error("Site not found");
+      }
+      if (existingSite.createdById !== userId) {
+        throw new Error("Only the site creator can update this site");
+      }
+
+      // 1. Update site details
+      const updatedSite = await tx.site.update({
+        where: { id: parseInt(id) },
+        data: { name, location, description },
+      });
+
+      // 2. Clear existing assignments for this site
+      await tx.user.updateMany({
+        where: { siteId: parseInt(id) },
+        data: { siteId: null, superiorId: null },
+      });
+
+      // 3. Assign new site in-charge
+      if (siteInCharge) {
+        await tx.user.updateMany({
+          where: { email: siteInCharge },
+          data: {
+            siteId: parseInt(id),
+            role: "SITE_INCHARGE",
+            superiorId: userId,
+          },
+        });
+      }
+
+      // 4. Get the site in-charge user for setting as superior
+      let siteInChargeUser = null;
+      if (siteInCharge) {
+        siteInChargeUser = await tx.user.findFirst({
+          where: { email: siteInCharge },
+        });
+      }
+
+      // 5. Assign site supervisors
+      if (siteSupervisors.length > 0) {
+        await tx.user.updateMany({
+          where: { email: { in: siteSupervisors } },
+          data: {
+            siteId: parseInt(id),
+            role: "SITE_SUPERVISOR",
+            superiorId: siteInChargeUser ? siteInChargeUser.id : null,
+          },
+        });
+      }
+
+      // 6. Assign cluster supervisors
+      if (clusterSupervisors.length > 0) {
+        await tx.user.updateMany({
+          where: { email: { in: clusterSupervisors } },
+          data: {
+            siteId: parseInt(id),
+            role: "CLUSTER_SUPERVISOR",
+            superiorId: siteInChargeUser ? siteInChargeUser.id : null,
+          },
+        });
+      }
+
+      return { site: updatedSite };
     });
-    res.json(site);
+
+    res.json(result);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to update site" });
+    if (err.message === "Site not found") {
+      res.status(404).json({ error: "Site not found" });
+    } else if (err.message === "Only the site creator can update this site") {
+      res
+        .status(403)
+        .json({ error: "Only the site creator can update this site" });
+    } else {
+      res.status(500).json({ error: "Failed to update site" });
+    }
   }
 };
 
@@ -140,5 +236,60 @@ exports.fullAssignSite = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to assign users to site" });
+  }
+};
+
+// Delete site and all related data
+exports.deleteSite = async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.user;
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Check if site exists and user is owner
+      const site = await tx.site.findUnique({
+        where: { id: parseInt(id) },
+        include: { createdBy: true },
+      });
+      if (!site) {
+        throw new Error("Site not found");
+      }
+      if (site.createdById !== userId) {
+        throw new Error("Only the site creator can delete this site");
+      }
+      // Delete jobs (cascade from devices)
+      await tx.job.deleteMany({
+        where: {
+          device: {
+            siteId: parseInt(id),
+          },
+        },
+      });
+      // Delete devices
+      await tx.device.deleteMany({
+        where: { siteId: parseInt(id) },
+      });
+      // Update users to remove site association (set siteId to null)
+      await tx.user.updateMany({
+        where: { siteId: parseInt(id) },
+        data: { siteId: null },
+      });
+      // Delete the site
+      await tx.site.delete({
+        where: { id: parseInt(id) },
+      });
+      return { message: "Site deleted successfully" };
+    });
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    if (err.message === "Site not found") {
+      res.status(404).json({ error: "Site not found" });
+    } else if (err.message === "Only the site creator can delete this site") {
+      res
+        .status(403)
+        .json({ error: "Only the site creator can delete this site" });
+    } else {
+      res.status(500).json({ error: "Failed to delete site" });
+    }
   }
 };

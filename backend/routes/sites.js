@@ -14,5 +14,6 @@ router.post(
   authorize("OWNER"),
   siteController.fullAssignSite
 );
+router.delete("/:id", auth, authorize("OWNER"), siteController.deleteSite);
 
 module.exports = router;

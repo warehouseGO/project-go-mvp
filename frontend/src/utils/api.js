@@ -52,6 +52,14 @@ export const usersAPI = {
   assignRole: (id, role) => api.put(`/users/${id}/role`, { role }),
   getHierarchy: () => api.get("/users/hierarchy"),
   assignSubordinate: (data) => api.post("/users/assign-subordinate", data),
+  assignClusterSupervisorsToSiteSupervisor: (
+    siteSupervisorId,
+    clusterSupervisorIds
+  ) =>
+    api.post("/users/assign-subordinate", {
+      superiorId: siteSupervisorId,
+      subordinateIds: clusterSupervisorIds,
+    }),
 };
 
 // Sites API calls
@@ -99,6 +107,12 @@ export const dashboardAPI = {
   siteSupervisorDashboard: () => api.get("/dashboard/site-supervisor"),
   clusterSupervisorDashboard: () => api.get("/dashboard/cluster-supervisor"),
   fullAssignSite: (data) => api.post("/sites/full-assign", data),
+  deleteSite: (siteId) => api.delete(`/sites/${siteId}`),
+  updateSite: (siteId, data) => api.put(`/sites/${siteId}`, data),
+  getSiteDetails: (siteId) => api.get(`/sites/${siteId}`),
+  getPendingUsers: (superiorId) =>
+    api.get("/users/pending", { params: { superiorId } }),
+  approveUser: (userId) => api.put(`/users/${userId}/approve`),
 };
 
 export default api;

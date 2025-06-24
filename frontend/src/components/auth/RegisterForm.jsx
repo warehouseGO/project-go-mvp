@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import LoadingSpinner from "../common/LoadingSpinner";
+import { ROLES } from "../../utils/constants";
 
 const RegisterForm = () => {
   const [formData, setFormData] = useState({
@@ -11,6 +12,7 @@ const RegisterForm = () => {
     confirmPassword: "",
     phone: "",
     superiorId: "",
+    role: ROLES.SITE_SUPERVISOR,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -161,6 +163,29 @@ const RegisterForm = () => {
 
             <div>
               <label
+                htmlFor="role"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Role
+              </label>
+              <select
+                id="role"
+                name="role"
+                required
+                value={formData.role}
+                onChange={handleChange}
+                className="input-field mt-1"
+              >
+                <option value={ROLES.SITE_INCHARGE}>Site In-Charge</option>
+                <option value={ROLES.SITE_SUPERVISOR}>Site Supervisor</option>
+                <option value={ROLES.CLUSTER_SUPERVISOR}>
+                  Cluster Supervisor
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label
                 htmlFor="password"
                 className="block text-sm font-medium text-gray-700"
               >
@@ -208,6 +233,17 @@ const RegisterForm = () => {
             </button>
           </div>
         </form>
+        <div className="mt-4 text-center">
+          <span className="text-sm text-gray-600">
+            Already have an account?{" "}
+          </span>
+          <Link
+            to="/login"
+            className="text-blue-600 hover:underline font-medium"
+          >
+            Login
+          </Link>
+        </div>
       </div>
     </div>
   );

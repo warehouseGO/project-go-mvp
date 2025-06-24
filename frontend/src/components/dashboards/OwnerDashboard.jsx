@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { dashboardAPI } from "../../utils/api";
 import LoadingSpinner from "../common/LoadingSpinner";
+import DeviceTable from "../common/DeviceTable";
+import DeviceFilters from "../common/DeviceFilters";
+import { useNavigate } from "react-router-dom";
 
 const OwnerDashboard = () => {
   const [sites, setSites] = useState([]);
@@ -10,6 +13,20 @@ const OwnerDashboard = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState("");
   const [modalSuccess, setModalSuccess] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteSiteId, setDeleteSiteId] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editSiteId, setEditSiteId] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    location: "",
+    description: "",
+    siteInCharge: "",
+    siteSupervisors: "",
+    clusterSupervisors: "",
+  });
   const [form, setForm] = useState({
     name: "",
     location: "",
@@ -18,6 +35,8 @@ const OwnerDashboard = () => {
     siteSupervisors: "",
     clusterSupervisors: "",
   });
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchDashboardData();
@@ -77,6 +96,97 @@ const OwnerDashboard = () => {
     }
   };
 
+  const handleDeleteSite = async () => {
+    setDeleteLoading(true);
+    try {
+      await dashboardAPI.deleteSite(deleteSiteId);
+      setDeleteModalOpen(false);
+      setDeleteSiteId(null);
+      fetchDashboardData(); // Refresh data
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleEditSite = async () => {
+    setEditLoading(true);
+    try {
+      const data = {
+        name: editForm.name,
+        location: editForm.location,
+        description: editForm.description,
+        siteInCharge: editForm.siteInCharge,
+        siteSupervisors: editForm.siteSupervisors
+          .split(",")
+          .map((email) => email.trim())
+          .filter((email) => email),
+        clusterSupervisors: editForm.clusterSupervisors
+          .split(",")
+          .map((email) => email.trim())
+          .filter((email) => email),
+      };
+      await dashboardAPI.updateSite(editSiteId, data);
+      setEditModalOpen(false);
+      setEditSiteId(null);
+      fetchDashboardData(); // Refresh data
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const openDeleteModal = (siteId) => {
+    setDeleteSiteId(siteId);
+    setDeleteModalOpen(true);
+  };
+
+  const openEditModal = async (siteId) => {
+    setEditSiteId(siteId);
+    try {
+      const siteDetails = await dashboardAPI.getSiteDetails(siteId);
+      console.log("Site details response:", siteDetails); // Debug log
+
+      // Safely handle users array - provide default empty array if undefined
+      const users = siteDetails.users || [];
+      console.log("Users array:", users); // Debug log
+
+      const siteInCharge = users.find((user) => user.role === "SITE_INCHARGE");
+      const siteSupervisors = users.filter(
+        (user) => user.role === "SITE_SUPERVISOR"
+      );
+      const clusterSupervisors = users.filter(
+        (user) => user.role === "CLUSTER_SUPERVISOR"
+      );
+
+      setEditForm({
+        name: siteDetails.name || "",
+        location: siteDetails.location || "",
+        description: siteDetails.description || "",
+        siteInCharge: siteInCharge ? siteInCharge.email : "",
+        siteSupervisors: siteSupervisors.map((user) => user.email).join(", "),
+        clusterSupervisors: clusterSupervisors
+          .map((user) => user.email)
+          .join(", "),
+      });
+      setEditModalOpen(true);
+    } catch (err) {
+      console.error("Error fetching site details:", err);
+      // Set default form values if API call fails
+      setEditForm({
+        name: "",
+        location: "",
+        description: "",
+        siteInCharge: "",
+        siteSupervisors: "",
+        clusterSupervisors: "",
+      });
+      setEditModalOpen(true);
+    }
+  };
+
   if (loading) return <LoadingSpinner size="lg" />;
   if (error) return <div className="text-red-600">{error}</div>;
 
@@ -112,32 +222,10 @@ const OwnerDashboard = () => {
         </p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Total Sites
-          </h3>
-          <p className="text-3xl font-bold text-primary-600">{sites.length}</p>
-        </div>
-        <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Total Devices
-          </h3>
-          <p className="text-3xl font-bold text-primary-600">{totalDevices}</p>
-        </div>
-        <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Total Users
-          </h3>
-          <p className="text-3xl font-bold text-primary-600">{totalUsers}</p>
-        </div>
-      </div>
-
       {/* Sites Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {sites.map((site) => (
-          <div key={site.id} className="card">
+          <div key={site.id} className="card relative">
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 {site.name}
@@ -168,10 +256,27 @@ const OwnerDashboard = () => {
               </div>
             </div> */}
 
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <button className="btn-primary w-full text-sm">
+            <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between">
+              <button
+                className="btn-primary text-sm"
+                onClick={() => navigate(`/sites/${site.id}`)}
+              >
                 View Details
               </button>
+              <div className="flex gap-2">
+                <button
+                  className="btn-secondary text-sm"
+                  onClick={() => openEditModal(site.id)}
+                >
+                  Edit
+                </button>
+                <button
+                  className="btn-danger text-sm"
+                  onClick={() => openDeleteModal(site.id)}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         ))}
@@ -299,6 +404,155 @@ const OwnerDashboard = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Site Modal */}
+      {editModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-semibold mb-4">Edit Site</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Site Name *
+                </label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, name: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter site name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  value={editForm.location}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, location: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter location"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, description: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter description"
+                  rows="3"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Site In-Charge Email *
+                </label>
+                <input
+                  type="email"
+                  value={editForm.siteInCharge}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, siteInCharge: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter site in-charge email"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Site Supervisors (comma-separated emails)
+                </label>
+                <input
+                  type="text"
+                  value={editForm.siteSupervisors}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      siteSupervisors: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="email1@example.com, email2@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cluster Supervisors (comma-separated emails)
+                </label>
+                <input
+                  type="text"
+                  value={editForm.clusterSupervisors}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      clusterSupervisors: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="email1@example.com, email2@example.com"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                className="btn-secondary"
+                onClick={() => setEditModalOpen(false)}
+                disabled={editLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={handleEditSite}
+                disabled={
+                  editLoading || !editForm.name || !editForm.siteInCharge
+                }
+              >
+                {editLoading ? "Updating..." : "Update Site"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+            <h2 className="text-lg font-semibold mb-4">Delete Site</h2>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete this site? This action cannot be
+              undone. All devices and jobs will be deleted, and users will be
+              unassigned.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="btn-secondary"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={deleteLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-danger"
+                onClick={handleDeleteSite}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? "Deleting..." : "Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}

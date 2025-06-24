@@ -21,29 +21,12 @@ const Sidebar = () => {
     {
       name: "Devices",
       href: "/devices",
-      roles: [
-        ROLES.SITE_INCHARGE,
-        ROLES.SITE_SUPERVISOR,
-        ROLES.CLUSTER_SUPERVISOR,
-      ],
+      roles: [ROLES.SITE_INCHARGE, ROLES.CLUSTER_SUPERVISOR],
     },
-    {
-      name: "Jobs",
-      href: "/jobs",
-      roles: [
-        ROLES.SITE_INCHARGE,
-        ROLES.SITE_SUPERVISOR,
-        ROLES.CLUSTER_SUPERVISOR,
-      ],
-    },
+
     {
       name: "Users",
       href: "/users",
-      roles: [ROLES.OWNER, ROLES.SITE_INCHARGE],
-    },
-    {
-      name: "Sites",
-      href: "/sites",
       roles: [ROLES.OWNER, ROLES.SITE_INCHARGE, ROLES.SITE_SUPERVISOR],
     },
   ];

@@ -15,6 +15,8 @@ import Dashboard from "./pages/Dashboard";
 import ClusterSupervisorDetails from "./pages/ClusterSupervisorDetails";
 import Devices from "./pages/Devices";
 import SiteSupervisorDevices from "./pages/SiteSupervisorDevices";
+import Users from "./pages/Users";
+import SiteDetails from "./pages/SiteDetails";
 import { ROLES } from "./utils/constants";
 
 const Layout = ({ children }) => {
@@ -24,7 +26,7 @@ const Layout = ({ children }) => {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <div className="flex">
-        {userRole !== ROLES.SITE_SUPERVISOR && <Sidebar />}
+        {userRole && <Sidebar />}
         <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
@@ -80,6 +82,28 @@ const App = () => {
               <ProtectedRoute>
                 <Layout>
                   <SiteSupervisorDevices />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Users />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/sites/:siteId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SiteDetails />
                 </Layout>
               </ProtectedRoute>
             }
