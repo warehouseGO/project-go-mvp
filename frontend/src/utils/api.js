@@ -68,6 +68,7 @@ export const sitesAPI = {
   createSite: (siteData) => api.post("/sites", siteData),
   getSiteDetails: (id) => api.get(`/sites/${id}`),
   updateSite: (id, siteData) => api.put(`/sites/${id}`, siteData),
+  getSites: () => api.get("/sites"),
 };
 
 // Devices API calls
@@ -113,6 +114,15 @@ export const dashboardAPI = {
   getPendingUsers: (superiorId) =>
     api.get("/users/pending", { params: { superiorId } }),
   approveUser: (userId) => api.put(`/users/${userId}/approve`),
+};
+
+export const resourcesAPI = {
+  getResources: (params) => api.get("/resources", { params }),
+  createResource: (data) => api.post("/resources", data),
+  updateResource: (id, data) => api.put(`/resources/${id}`, data),
+  deleteResource: (id) => api.delete(`/resources/${id}`),
+  allocateResources: (data) => api.post("/resources/allocate", data),
+  updateResourceStatus: (id, data) => api.put(`/resources/${id}/status`, data),
 };
 
 export default api;

@@ -34,6 +34,12 @@ enum JobStatus {
   CONSTRAINT
 }
 
+enum ResourceStatus {
+  WORKING
+  BREAKDOWN
+  FREE
+}
+
 // Main Models
 model User {
   id           Int        @id @default(autoincrement())
@@ -72,6 +78,7 @@ model Site {
   createdBy User     @relation("SiteCreator", fields: [createdById], references: [id])
   users     User[]
   devices   Device[]
+  resources Resource[]
 
   @@map("sites")
 }
@@ -119,4 +126,20 @@ model Job {
   
 
   @@map("jobs")
+}
+
+model Resource {
+  id           Int            @id @default(autoincrement())
+  name         String
+  regNo        String         @unique
+  type         String
+  siteId       Int?
+  allocatedAt  DateTime?
+  status       ResourceStatus @default(FREE)
+  dispatchDate DateTime?
+  attributes   Json?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  site         Site?          @relation(fields: [siteId], references: [id])
 }

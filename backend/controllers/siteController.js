@@ -3,7 +3,7 @@ const prisma = new PrismaClient();
 
 exports.getSites = async (req, res) => {
   try {
-    const { role, userId } = req.query;
+    const { userId } = req.user;
     let where = {};
 
     const sites = await prisma.user.findUnique({

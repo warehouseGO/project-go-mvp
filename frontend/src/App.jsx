@@ -17,6 +17,8 @@ import Devices from "./pages/Devices";
 import SiteSupervisorDevices from "./pages/SiteSupervisorDevices";
 import Users from "./pages/Users";
 import SiteDetails from "./pages/SiteDetails";
+import SiteAnalyticsPage from "./pages/SiteAnalyticsPage";
+import ResourceManagement from "./pages/ResourceManagement";
 import { ROLES } from "./utils/constants";
 
 const Layout = ({ children }) => {
@@ -104,6 +106,28 @@ const App = () => {
               <ProtectedRoute>
                 <Layout>
                   <SiteDetails />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/sites/:siteId/analytics"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SiteAnalyticsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/resources"
+            element={
+              <ProtectedRoute requiredRole={[ROLES.OWNER, ROLES.SITE_INCHARGE]}>
+                <Layout>
+                  <ResourceManagement />
                 </Layout>
               </ProtectedRoute>
             }

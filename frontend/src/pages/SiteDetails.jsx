@@ -1,15 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { dashboardAPI } from "../utils/api";
 import DeviceTable from "../components/common/DeviceTable";
 import DeviceFilters from "../components/common/DeviceFilters";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import { DEVICE_TYPES, DEVICE_SUBTYPES } from "../utils/constants";
 import AttributesModal from "../components/common/AttributesModal";
+import SiteAnalytics from "../components/dashboards/SiteAnalytics";
+import { useAuth } from "../context/AuthContext";
 
 const SiteDetails = () => {
+  const { user } = useAuth();
   const { siteId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [siteDetails, setSiteDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deviceFilters, setDeviceFilters] = useState({});
@@ -102,6 +106,13 @@ const SiteDetails = () => {
   };
   const closeAttributesModal = () => setAttributesModalOpen(false);
 
+  // Add analytics navigation button for owner
+  const handleGoToAnalytics = () => {
+    navigate(`/sites/${siteId}/analytics`, {
+      state: { siteData: siteDetails },
+    });
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
@@ -110,12 +121,20 @@ const SiteDetails = () => {
             ? `${siteDetails.name} - Site Details`
             : "Site Details"}
         </h1>
-        <button
-          className="btn-secondary"
-          onClick={() => navigate("/dashboard")}
-        >
-          Back to Dashboard
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="btn-secondary"
+            onClick={() => navigate("/dashboard")}
+          >
+            Back to Dashboard
+          </button>
+          {/* Show analytics button for owner */}
+          {user?.role === "OWNER" && (
+            <button className="btn-primary" onClick={handleGoToAnalytics}>
+              Analytics
+            </button>
+          )}
+        </div>
       </div>
       {loading ? (
         <LoadingSpinner size="lg" />

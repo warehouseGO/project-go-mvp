@@ -146,7 +146,8 @@ const OwnerDashboard = () => {
   const openEditModal = async (siteId) => {
     setEditSiteId(siteId);
     try {
-      const siteDetails = await dashboardAPI.getSiteDetails(siteId);
+      let siteDetails = await dashboardAPI.getSiteDetails(siteId);
+      siteDetails = siteDetails.data;
       console.log("Site details response:", siteDetails); // Debug log
 
       // Safely handle users array - provide default empty array if undefined

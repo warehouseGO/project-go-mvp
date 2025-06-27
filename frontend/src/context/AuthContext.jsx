@@ -89,6 +89,9 @@ export const AuthProvider = ({ children }) => {
 
   const hasRole = (role) => {
     if (!user || !user.role) return false;
+    if (Array.isArray(role)) {
+      return role.includes(user.role);
+    }
     return user.role === role;
   };
 

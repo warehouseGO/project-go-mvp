@@ -4,7 +4,7 @@ import { devicesAPI, dashboardAPI } from "../utils/api";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import DeviceTable from "../components/common/DeviceTable";
 import DeviceFilters from "../components/common/DeviceFilters";
-import AddDeviceModal from "../components/common/AddDeviceModal";
+import DeviceModal from "../components/common/DeviceModal";
 import AttributesModal from "../components/common/AttributesModal";
 import StatusBadge from "../components/common/StatusBadge";
 import { JOB_STATUS } from "../utils/constants";
@@ -36,6 +36,11 @@ const Devices = () => {
   const [expandedDeviceId, setExpandedDeviceId] = useState(null);
   const [showAttrModal, setShowAttrModal] = useState(false);
   const [attrModalData, setAttrModalData] = useState(null);
+  const [editDevice, setEditDevice] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [deleteDevice, setDeleteDevice] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     if (user?.siteId) {
@@ -220,6 +225,42 @@ const Devices = () => {
     }
   };
 
+  const handleEditDevice = (device) => {
+    setEditDevice(device);
+  };
+
+  const handleEditDeviceSubmit = async (deviceData) => {
+    setEditLoading(true);
+    try {
+      await devicesAPI.updateDevice(editDevice.id, deviceData);
+      setEditDevice(null);
+      fetchData();
+    } catch (err) {
+      setError("Failed to update device");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleDeleteDevice = (device) => {
+    setDeleteDevice(device);
+    setDeleteError("");
+  };
+
+  const handleConfirmDelete = async () => {
+    setDeleteLoading(true);
+    setDeleteError("");
+    try {
+      await devicesAPI.deleteDevice(deleteDevice.id);
+      setDeleteDevice(null);
+      fetchData();
+    } catch (err) {
+      setDeleteError("Failed to delete device");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   if (loading) return <LoadingSpinner size="lg" />;
   if (error) return <div className="text-red-600">{error}</div>;
 
@@ -284,14 +325,17 @@ const Devices = () => {
             onBulkAssign={handleBulkAssign}
             assignLabel="Assign to Site Supervisor"
             assignLoading={assignLoading}
+            onEditDevice={handleEditDevice}
+            onDeleteDevice={handleDeleteDevice}
           />
         </div>
       )}
 
       {/* Add Device Modal */}
-      <AddDeviceModal
+      <DeviceModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
+        mode="add"
         onSubmit={handleAddDevice}
         loading={addLoading}
         siteSupervisors={siteSupervisors}
@@ -303,6 +347,51 @@ const Devices = () => {
         onClose={() => setShowAttrModal(false)}
         attributes={attrModalData}
       />
+
+      {/* Edit Device Modal */}
+      <DeviceModal
+        isOpen={!!editDevice}
+        onClose={() => setEditDevice(null)}
+        mode="edit"
+        device={editDevice}
+        onSubmit={handleEditDeviceSubmit}
+        loading={editLoading}
+        siteSupervisors={siteSupervisors}
+      />
+
+      {/* Delete Device Confirmation Modal */}
+      {deleteDevice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+            <h2 className="text-lg font-semibold mb-4 text-red-700">
+              Delete Device
+            </h2>
+            <p className="mb-4">
+              Are you sure you want to delete <b>{deleteDevice.name}</b> and all
+              its jobs? This action cannot be undone.
+            </p>
+            {deleteError && (
+              <div className="text-red-600 mb-2">{deleteError}</div>
+            )}
+            <div className="flex gap-2 justify-end">
+              <button
+                className="btn-secondary"
+                onClick={() => setDeleteDevice(null)}
+                disabled={deleteLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-danger"
+                onClick={handleConfirmDelete}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

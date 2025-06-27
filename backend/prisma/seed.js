@@ -296,6 +296,42 @@ async function main() {
 
   console.log("Created sample jobs for all devices");
 
+  // Seed sample resources
+  await prisma.resource.createMany({
+    data: [
+      {
+        name: "Forklift A",
+        regNo: "FL-001",
+        type: "Forklift",
+        status: "WORKING",
+        attributes: { capacity: "2T", manufacturer: "Toyota" },
+        siteId: site1.id,
+        allocatedAt: new Date(),
+      },
+      {
+        name: "Crane B",
+        regNo: "CR-002",
+        type: "Crane",
+        status: "FREE",
+        attributes: { reach: "10m", manufacturer: "Liebherr" },
+        siteId: null,
+        allocatedAt: null,
+      },
+      {
+        name: "Loader C",
+        regNo: "LD-003",
+        type: "Loader",
+        status: "BREAKDOWN",
+        attributes: { power: "150HP", manufacturer: "Caterpillar" },
+        siteId: site2.id,
+        allocatedAt: new Date(),
+        dispatchDate: new Date(),
+      },
+    ],
+  });
+
+  console.log("Created sample resources");
+
   console.log("Database seeding completed successfully!");
   console.log("\nSample login credentials:");
   console.log("Owner: owner@warehouse.com / password123");

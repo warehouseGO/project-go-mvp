@@ -1,19 +1,19 @@
 import React from "react";
 import { JOB_STATUS_COLORS, USER_STATUS_COLORS } from "../../utils/constants";
 
-const StatusBadge = ({ status, type = "job", className = "" }) => {
-  const getColorClass = () => {
-    if (type === "job") {
-      return JOB_STATUS_COLORS[status];
-    } else if (type === "user") {
-      return USER_STATUS_COLORS[status] || "bg-gray-100 text-gray-800";
-    }
-    return "bg-gray-100 text-gray-800";
-  };
+const resourceStatusColors = {
+  WORKING: "bg-green-100 text-green-800",
+  BREAKDOWN: "bg-red-100 text-red-800",
+  FREE: "bg-gray-100 text-gray-800",
+};
 
+const StatusBadge = ({ status, resourceType }) => {
+  const colorClass = resourceType
+    ? resourceStatusColors[status] || "bg-gray-100 text-gray-800"
+    : statusColors[status?.toLowerCase()] || "bg-gray-100 text-gray-800";
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getColorClass()} ${className}`}
+      className={`inline-block px-2 py-1 rounded text-xs font-semibold ${colorClass}`}
     >
       {status}
     </span>

@@ -1,13 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { JOB_STATUS } from "../../utils/constants";
 
-const AddDeviceModal = ({
+const DeviceModal = ({
   isOpen,
   onClose,
+  mode = "add", // "add" or "edit"
+  device = null,
   onSubmit,
   loading = false,
   siteSupervisors = [],
 }) => {
+  const isEdit = mode === "edit";
   const [formData, setFormData] = useState({
     serialNumber: "",
     name: "",
@@ -17,8 +20,43 @@ const AddDeviceModal = ({
   });
   const [attributes, setAttributes] = useState([]); // [{key: '', value: ''}]
   const [attrError, setAttrError] = useState("");
-  const [jobs, setJobs] = useState([]); // [{name, status, comment}]
+  const [jobs, setJobs] = useState([]); // [{id?, name}]
   const [jobError, setJobError] = useState("");
+
+  useEffect(() => {
+    if (isEdit && device) {
+      setFormData({
+        serialNumber: device.serialNumber || "",
+        name: device.name || "",
+        type: device.type || "",
+        subtype: device.subtype || "",
+        siteSupervisorId: device.siteSupervisorId
+          ? String(device.siteSupervisorId)
+          : "",
+      });
+      // Convert attributes object to array
+      const attrArr = device.attributes
+        ? Object.entries(device.attributes).map(([key, value]) => ({
+            key,
+            value,
+          }))
+        : [];
+      setAttributes(attrArr);
+      setJobs(
+        device.jobs ? device.jobs.map((j) => ({ id: j.id, name: j.name })) : []
+      );
+    } else if (!isEdit) {
+      setFormData({
+        serialNumber: "",
+        name: "",
+        type: "",
+        subtype: "",
+        siteSupervisorId: "",
+      });
+      setAttributes([]);
+      setJobs([]);
+    }
+  }, [device, isEdit, isOpen]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -44,25 +82,14 @@ const AddDeviceModal = ({
     attributes.forEach((a) => {
       if (a.key.trim()) attrObj[a.key.trim()] = a.value;
     });
-    onSubmit({ ...formData, attributes: attrObj, jobs });
+    // Prepare jobs for backend: only name (and id if editing), status logic
+    const jobsForSubmit = jobs.map((j) =>
+      isEdit && j.id
+        ? { id: j.id, name: j.name } // status/comment not editable
+        : { name: j.name, status: JOB_STATUS.IN_PROGRESS }
+    );
+    onSubmit({ ...formData, attributes: attrObj, jobs: jobsForSubmit });
   };
-
-  const handleClose = () => {
-    setFormData({
-      serialNumber: "",
-      name: "",
-      type: "",
-      subtype: "",
-      siteSupervisorId: "",
-    });
-    setAttributes([]);
-    setJobs([]);
-    setAttrError("");
-    setJobError("");
-    onClose();
-  };
-
-  const isFormValid = formData.serialNumber && formData.name && formData.type;
 
   const handleAttrChange = (idx, field, value) => {
     setAttributes((prev) =>
@@ -79,16 +106,13 @@ const AddDeviceModal = ({
   };
 
   // Jobs logic
-  const handleJobChange = (idx, field, value) => {
+  const handleJobChange = (idx, value) => {
     setJobs((prev) =>
-      prev.map((j, i) => (i === idx ? { ...j, [field]: value } : j))
+      prev.map((j, i) => (i === idx ? { ...j, name: value } : j))
     );
   };
   const handleAddJob = () => {
-    setJobs((prev) => [
-      ...prev,
-      { name: "", status: JOB_STATUS.IN_PROGRESS, comment: "" },
-    ]);
+    setJobs((prev) => [...prev, { name: "" }]);
   };
   const handleRemoveJob = (idx) => {
     setJobs((prev) => prev.filter((_, i) => i !== idx));
@@ -99,24 +123,30 @@ const AddDeviceModal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
       <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md overflow-y-auto max-h-[90vh]">
-        <h2 className="text-lg font-semibold mb-4">Add New Device</h2>
+        <h2 className="text-lg font-semibold mb-4">
+          {isEdit ? "Edit Device" : "Add New Device"}
+        </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Serial Number *
+              Serial Number{isEdit ? "" : " *"}
             </label>
             <input
               type="text"
-              className="input-field"
+              className={`input-field${
+                isEdit ? " bg-gray-100 cursor-not-allowed" : ""
+              }`}
               value={formData.serialNumber}
               onChange={(e) =>
+                !isEdit &&
                 setFormData((prev) => ({
                   ...prev,
                   serialNumber: e.target.value,
                 }))
               }
               placeholder="Enter serial number"
-              required
+              required={!isEdit}
+              disabled={isEdit}
             />
           </div>
 
@@ -201,67 +231,45 @@ const AddDeviceModal = ({
               </label>
               <button
                 type="button"
-                className="btn-secondary text-xs px-2 py-1"
+                className="btn-secondary btn-xs"
                 onClick={handleAddAttr}
               >
-                + Add Attribute
+                + Add
               </button>
             </div>
-            {attributes.length === 0 && (
-              <div className="text-xs text-gray-400 mb-2">
-                No attributes added yet.
+            {attributes.map((attr, idx) => (
+              <div key={idx} className="flex gap-2 mb-1">
+                <input
+                  type="text"
+                  className="input-field flex-1"
+                  placeholder="Key"
+                  value={attr.key}
+                  onChange={(e) => handleAttrChange(idx, "key", e.target.value)}
+                />
+                <input
+                  type="text"
+                  className="input-field flex-1"
+                  placeholder="Value"
+                  value={attr.value}
+                  onChange={(e) =>
+                    handleAttrChange(idx, "value", e.target.value)
+                  }
+                />
+                <button
+                  type="button"
+                  className="btn-danger btn-xs"
+                  onClick={() => handleRemoveAttr(idx)}
+                >
+                  Remove
+                </button>
               </div>
-            )}
-            <div className="space-y-2">
-              {attributes.map((attr, idx) => (
-                <div key={idx} className="flex gap-2 items-center">
-                  <input
-                    type="text"
-                    className="input-field flex-1"
-                    placeholder="Key"
-                    value={attr.key}
-                    onChange={(e) =>
-                      handleAttrChange(idx, "key", e.target.value)
-                    }
-                  />
-                  <input
-                    type="text"
-                    className="input-field flex-1"
-                    placeholder="Value"
-                    value={attr.value}
-                    onChange={(e) =>
-                      handleAttrChange(idx, "value", e.target.value)
-                    }
-                  />
-                  <button
-                    type="button"
-                    className="btn-danger text-xs px-2 py-1"
-                    onClick={() => handleRemoveAttr(idx)}
-                    aria-label="Remove attribute"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
+            ))}
             {attrError && (
-              <div className="text-xs text-red-600 mt-1">{attrError}</div>
-            )}
-            {attributes.length > 0 && !attrError && (
-              <div className="mt-2">
-                <div className="text-xs text-gray-500 mb-1">Summary:</div>
-                <div className="bg-gray-50 rounded p-2 text-xs text-gray-700">
-                  {attributes.map((a, i) => (
-                    <div key={i}>
-                      <span className="font-medium">{a.key}</span>: {a.value}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <div className="text-red-600 text-xs mt-1">{attrError}</div>
             )}
           </div>
 
-          {/* Jobs Section */}
+          {/* Jobs */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-sm font-medium text-gray-700">
@@ -269,95 +277,53 @@ const AddDeviceModal = ({
               </label>
               <button
                 type="button"
-                className="btn-secondary text-xs px-2 py-1"
+                className="btn-secondary btn-xs"
                 onClick={handleAddJob}
               >
-                + Add Job
+                + Add
               </button>
             </div>
-            {jobs.length === 0 && (
-              <div className="text-xs text-gray-400 mb-2">
-                No jobs added yet.
+            {jobs.map((job, idx) => (
+              <div key={job.id || idx} className="flex gap-2 mb-1 items-center">
+                <input
+                  type="text"
+                  className="input-field flex-1"
+                  placeholder="Job Name"
+                  value={job.name}
+                  onChange={(e) => handleJobChange(idx, e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="btn-danger btn-xs"
+                  onClick={() => handleRemoveJob(idx)}
+                >
+                  Remove
+                </button>
               </div>
-            )}
-            <div className="space-y-2">
-              {jobs.map((job, idx) => (
-                <div key={idx} className="flex gap-2 items-center">
-                  <input
-                    type="text"
-                    className="input-field flex-1"
-                    placeholder="Job Name"
-                    value={job.name}
-                    onChange={(e) =>
-                      handleJobChange(idx, "name", e.target.value)
-                    }
-                  />
-                  <select
-                    className="input-field flex-1"
-                    value={job.status}
-                    onChange={(e) =>
-                      handleJobChange(idx, "status", e.target.value)
-                    }
-                  >
-                    {Object.values(JOB_STATUS).map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    className="input-field flex-1"
-                    placeholder="Comment"
-                    value={job.comment}
-                    onChange={(e) =>
-                      handleJobChange(idx, "comment", e.target.value)
-                    }
-                  />
-                  <button
-                    type="button"
-                    className="btn-danger text-xs px-2 py-1"
-                    onClick={() => handleRemoveJob(idx)}
-                    aria-label="Remove job"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
+            ))}
             {jobError && (
-              <div className="text-xs text-red-600 mt-1">{jobError}</div>
-            )}
-            {jobs.length > 0 && !jobError && (
-              <div className="mt-2">
-                <div className="text-xs text-gray-500 mb-1">Summary:</div>
-                <div className="bg-gray-50 rounded p-2 text-xs text-gray-700">
-                  {jobs.map((j, i) => (
-                    <div key={i}>
-                      <span className="font-medium">{j.name}</span> ({j.status})
-                      {j.comment ? `: ${j.comment}` : ""}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <div className="text-red-600 text-xs mt-1">{jobError}</div>
             )}
           </div>
 
-          <div className="mt-6 flex justify-end space-x-2">
+          <div className="flex gap-2 justify-end mt-4">
             <button
               type="button"
               className="btn-secondary"
-              onClick={handleClose}
+              onClick={onClose}
               disabled={loading}
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={!isFormValid || loading}
-            >
-              {loading ? "Adding..." : "Add Device"}
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading
+                ? isEdit
+                  ? "Saving..."
+                  : "Adding..."
+                : isEdit
+                ? "Save Changes"
+                : "Add Device"}
             </button>
           </div>
         </form>
@@ -366,4 +332,4 @@ const AddDeviceModal = ({
   );
 };
 
-export default AddDeviceModal;
+export default DeviceModal;

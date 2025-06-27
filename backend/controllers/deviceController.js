@@ -82,23 +82,98 @@ exports.getDeviceDetails = async (req, res) => {
 exports.updateDevice = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, type, subtype, attributes } = req.body;
-    const device = await prisma.device.update({
-      where: { id: parseInt(id) },
-      data: { name, type, subtype, attributes },
+    const {
+      name,
+      type,
+      subtype,
+      attributes,
+      siteSupervisorId,
+      assignedTo,
+      jobs = [],
+    } = req.body;
+
+    // Start transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Update device fields
+      const updatedDevice = await tx.device.update({
+        where: { id: parseInt(id) },
+        data: {
+          name,
+          type,
+          subtype,
+          attributes,
+          siteSupervisorId: siteSupervisorId
+            ? parseInt(siteSupervisorId)
+            : undefined,
+          assignedTo: assignedTo ? parseInt(assignedTo) : undefined,
+        },
+      });
+
+      // 2. Handle jobs
+      // Fetch existing jobs
+      const existingJobs = await tx.job.findMany({
+        where: { deviceId: parseInt(id) },
+      });
+      const existingJobIds = existingJobs.map((j) => j.id);
+      const sentJobIds = jobs.filter((j) => j.id).map((j) => j.id);
+
+      // a. Delete jobs not present in the request
+      const jobsToDelete = existingJobIds.filter(
+        (jid) => !sentJobIds.includes(jid)
+      );
+      if (jobsToDelete.length > 0) {
+        await tx.job.deleteMany({ where: { id: { in: jobsToDelete } } });
+      }
+
+      // b. Update or create jobs
+      for (const job of jobs) {
+        if (job.id) {
+          // Update existing job
+          await tx.job.update({
+            where: { id: job.id },
+            data: {
+              name: job.name,
+              status: job.status,
+              comment: job.comment || null,
+            },
+          });
+        } else {
+          // Create new job
+          await tx.job.create({
+            data: {
+              deviceId: parseInt(id),
+              name: job.name,
+              status: job.status || "IN_PROGRESS",
+              comment: job.comment || null,
+            },
+          });
+        }
+      }
+
+      // Return updated device with jobs
+      return tx.device.findUnique({
+        where: { id: parseInt(id) },
+        include: { jobs: true },
+      });
     });
-    res.json(device);
+
+    res.json(result);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to update device" });
+    res.status(500).json({ error: "Failed to update device and jobs" });
   }
 };
 
 exports.deleteDevice = async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.device.delete({ where: { id: parseInt(id) } });
-    res.json({ message: "Device deleted" });
+    await prisma.$transaction(async (tx) => {
+      // Delete jobs first (for safety, even though cascade is set)
+      await tx.job.deleteMany({ where: { deviceId: parseInt(id) } });
+      // Delete device
+      await tx.device.delete({ where: { id: parseInt(id) } });
+    });
+    res.json({ message: "Device and its jobs deleted" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to delete device" });

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import StatusBadge from "./StatusBadge";
 import { JOB_STATUS } from "../../utils/constants";
+import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 const DeviceTable = ({
   devices,
@@ -16,6 +17,8 @@ const DeviceTable = ({
   onBulkAssign = null,
   assignLabel = "Assign to User",
   assignLoading = false,
+  onEditDevice = null,
+  onDeleteDevice = null,
 }) => {
   const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
@@ -220,6 +223,26 @@ const DeviceTable = ({
                       onClick={() => onShowJobs(device.id)}
                     >
                       {expandedDeviceId === device.id ? "Hide" : "Show"}
+                    </button>
+                  )}
+                </td>
+                <td className="px-4 py-3 flex gap-2 items-center">
+                  {showActions && onEditDevice && (
+                    <button
+                      className="p-1 rounded hover:bg-blue-100"
+                      title="Edit Device"
+                      onClick={() => onEditDevice(device)}
+                    >
+                      <PencilSquareIcon className="h-5 w-5 text-blue-600" />
+                    </button>
+                  )}
+                  {showActions && onDeleteDevice && (
+                    <button
+                      className="p-1 rounded hover:bg-red-100"
+                      title="Delete Device"
+                      onClick={() => onDeleteDevice(device)}
+                    >
+                      <TrashIcon className="h-5 w-5 text-red-600" />
                     </button>
                   )}
                 </td>

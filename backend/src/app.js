@@ -8,6 +8,7 @@ const siteRoutes = require("../routes/sites");
 const deviceRoutes = require("../routes/devices");
 const jobRoutes = require("../routes/jobs");
 const dashboardRoutes = require("../routes/dashboard");
+const resourcesRouter = require("../routes/resources");
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use("/api/sites", siteRoutes);
 app.use("/api/devices", deviceRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/resources", resourcesRouter);
 
 // Health check
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));

@@ -1,11 +1,13 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useMatch } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { ROLES } from "../../utils/constants";
 
 const Sidebar = () => {
   const { hasRole } = useAuth();
   const location = useLocation();
+  const matchSiteDetails = useMatch("/sites/:siteId");
+  const matchSiteAnalytics = useMatch("/sites/:siteId/analytics");
 
   const navigation = [
     {
@@ -55,6 +57,19 @@ const Sidebar = () => {
               </Link>
             );
           })}
+          {/* Resource Management (Owner and Site In-Charge) */}
+          {(hasRole(ROLES.OWNER) || hasRole(ROLES.SITE_INCHARGE)) && (
+            <Link
+              to="/resources"
+              className={`${
+                location.pathname.startsWith("/resources")
+                  ? "bg-primary-100 text-primary-700 border-r-2 border-primary-500"
+                  : "text-gray-700 hover:bg-gray-100"
+              } group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200`}
+            >
+              Resources
+            </Link>
+          )}
         </div>
       </nav>
     </div>
