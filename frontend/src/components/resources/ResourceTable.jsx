@@ -129,7 +129,7 @@ const ResourceTable = ({
                   : "-"}
               </td>
               <td className="px-4 py-3">
-                <StatusBadge status={resource.status} resourceType />
+                <StatusBadge status={resource.status} type="resource" />
               </td>
               <td className="px-4 py-3 text-sm text-gray-900">
                 {resource.dispatchDate

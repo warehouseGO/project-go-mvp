@@ -8,10 +8,10 @@ async function main() {
 
   // Create Owner user
   const ownerUser = await prisma.user.upsert({
-    where: { email: "owner@warehouse.com" },
+    where: { email: "sahil@warehouse.com" },
     update: {},
     create: {
-      email: "owner@warehouse.com",
+      email: "sahil@warehouse.com",
       passwordHash: await bcrypt.hash("password123", 10),
       name: "System Owner",
       role: Role.OWNER,
@@ -26,9 +26,9 @@ async function main() {
     where: { id: 1 },
     update: {},
     create: {
-      name: "Warehouse North",
-      location: "North District",
-      description: "Primary warehouse facility in the north region",
+      name: "VMD",
+      location: "vadodara",
+      description: "VMD",
       createdById: ownerUser.id,
     },
   });
@@ -37,23 +37,31 @@ async function main() {
     where: { id: 2 },
     update: {},
     create: {
-      name: "Warehouse South",
-      location: "South District",
-      description: "Secondary warehouse facility in the south region",
+      name: "HMD",
+      location: "haryana",
+      description: "HMD",
+      createdById: ownerUser.id,
+    },
+  });
+  const site3 = await prisma.site.upsert({
+    where: { id: 3 },
+    update: {},
+    create: {
+      name: "HMEL Bhatinda",
+      location: "bhatinda",
+      description: "HMEL Bhatinda",
       createdById: ownerUser.id,
     },
   });
 
-  console.log("Created sites:", site1.name, site2.name);
-
   // Create Site In-Charge users
   const siteInCharge1 = await prisma.user.upsert({
-    where: { email: "incharge1@warehouse.com" },
+    where: { email: "narayan@warehouse.com" },
     update: {},
     create: {
-      email: "incharge1@warehouse.com",
+      email: "narayan@warehouse.com",
       passwordHash: await bcrypt.hash("password123", 10),
-      name: "John Site Manager",
+      name: "Narayan Vanzara",
       role: Role.SITE_INCHARGE,
       status: UserStatus.ACTIVE,
       siteId: site1.id,
@@ -62,12 +70,12 @@ async function main() {
   });
 
   const siteInCharge2 = await prisma.user.upsert({
-    where: { email: "incharge2@warehouse.com" },
+    where: { email: "pradip@warehouse.com" },
     update: {},
     create: {
-      email: "incharge2@warehouse.com",
+      email: "pradip@warehouse.com",
       passwordHash: await bcrypt.hash("password123", 10),
-      name: "Sarah Site Manager",
+      name: "Pradip Patel",
       role: Role.SITE_INCHARGE,
       status: UserStatus.ACTIVE,
       siteId: site2.id,
@@ -75,20 +83,28 @@ async function main() {
     },
   });
 
-  console.log(
-    "Created site in-charges:",
-    siteInCharge1.name,
-    siteInCharge2.name
-  );
+  const siteInCharge3 = await prisma.user.upsert({
+    where: { email: "xyz@warehouse.com" },
+    update: {},
+    create: {
+      email: "xyz@warehouse.com",
+      passwordHash: await bcrypt.hash("password123", 10),
+      name: "XYZ",
+      role: Role.SITE_INCHARGE,
+      status: UserStatus.ACTIVE,
+      siteId: site3.id,
+      superiorId: ownerUser.id,
+    },
+  });
 
   // Create Site Supervisor users
   const siteSupervisor1 = await prisma.user.upsert({
-    where: { email: "supervisor1@warehouse.com" },
+    where: { email: "som@warehouse.com" },
     update: {},
     create: {
-      email: "supervisor1@warehouse.com",
+      email: "som@warehouse.com",
       passwordHash: await bcrypt.hash("password123", 10),
-      name: "Mike Supervisor",
+      name: "Som Bhai",
       role: Role.SITE_SUPERVISOR,
       status: UserStatus.ACTIVE,
       siteId: site1.id,
@@ -97,33 +113,41 @@ async function main() {
   });
 
   const siteSupervisor2 = await prisma.user.upsert({
-    where: { email: "supervisor2@warehouse.com" },
+    where: { email: "kiran@warehouse.com" },
     update: {},
     create: {
-      email: "supervisor2@warehouse.com",
+      email: "kiran@warehouse.com",
       passwordHash: await bcrypt.hash("password123", 10),
-      name: "Lisa Supervisor",
+      name: "Kiran",
       role: Role.SITE_SUPERVISOR,
       status: UserStatus.ACTIVE,
-      siteId: site2.id,
-      superiorId: siteInCharge2.id,
+      siteId: site1.id,
+      superiorId: siteInCharge1.id,
     },
   });
 
-  console.log(
-    "Created site supervisors:",
-    siteSupervisor1.name,
-    siteSupervisor2.name
-  );
+  const siteSupervisor3 = await prisma.user.upsert({
+    where: { email: "vora@warehouse.com" },
+    update: {},
+    create: {
+      email: "vora@warehouse.com",
+      passwordHash: await bcrypt.hash("password123", 10),
+      name: "Vora",
+      role: Role.SITE_SUPERVISOR,
+      status: UserStatus.ACTIVE,
+      siteId: site1.id,
+      superiorId: siteInCharge1.id,
+    },
+  });
 
   // Create Cluster Supervisor users
   const clusterSupervisor1 = await prisma.user.upsert({
-    where: { email: "cluster1@warehouse.com" },
+    where: { email: "abc@warehouse.com" },
     update: {},
     create: {
-      email: "cluster1@warehouse.com",
+      email: "abc@warehouse.com",
       passwordHash: await bcrypt.hash("password123", 10),
-      name: "Alex Cluster Manager",
+      name: "ABC",
       role: Role.CLUSTER_SUPERVISOR,
       status: UserStatus.ACTIVE,
       siteId: site1.id,
@@ -132,12 +156,12 @@ async function main() {
   });
 
   const clusterSupervisor2 = await prisma.user.upsert({
-    where: { email: "cluster2@warehouse.com" },
+    where: { email: "xyz@warehouse.com" },
     update: {},
     create: {
-      email: "cluster2@warehouse.com",
+      email: "xyz@warehouse.com",
       passwordHash: await bcrypt.hash("password123", 10),
-      name: "Emma Cluster Manager",
+      name: "XYZ",
       role: Role.CLUSTER_SUPERVISOR,
       status: UserStatus.ACTIVE,
       siteId: site1.id,
@@ -145,192 +169,190 @@ async function main() {
     },
   });
 
-  const clusterSupervisor3 = await prisma.user.upsert({
-    where: { email: "cluster3@warehouse.com" },
-    update: {},
-    create: {
-      email: "cluster3@warehouse.com",
-      passwordHash: await bcrypt.hash("password123", 10),
-      name: "David Cluster Manager",
-      role: Role.CLUSTER_SUPERVISOR,
-      status: UserStatus.ACTIVE,
-      siteId: site2.id,
-      superiorId: siteSupervisor2.id,
-    },
-  });
-
-  console.log(
-    "Created cluster supervisors:",
-    clusterSupervisor1.name,
-    clusterSupervisor2.name,
-    clusterSupervisor3.name
-  );
-
   // Create sample devices with jobs for site 1
-  const device1 = await prisma.device.upsert({
-    where: { serialNumber: "HE-001" },
-    update: {},
-    create: {
-      serialNumber: "HE-001",
-      name: "Heat Exchanger Unit 1",
-      type: "Heat Exchanger",
-      subtype: "Floating",
-      siteId: site1.id,
-      createdBy: siteInCharge1.id,
-      assignedTo: clusterSupervisor1.id,
-      attributes: {
-        capacity: "2000 BTU/hr",
-        material: "Stainless Steel",
-        pressure_rating: "150 PSI",
-      },
-    },
-  });
 
-  const device2 = await prisma.device.upsert({
-    where: { serialNumber: "PUMP-001" },
-    update: {},
-    create: {
-      serialNumber: "PUMP-001",
-      name: "Centrifugal Pump 1",
-      type: "Pump",
-      subtype: "Fixed",
-      siteId: site1.id,
-      createdBy: siteInCharge1.id,
-      assignedTo: clusterSupervisor2.id,
-      attributes: {
-        flow_rate: "100 GPM",
-        head: "50 ft",
-        power: "5 HP",
-      },
-    },
-  });
+  // Seed sample resources
 
-  // Create sample devices for site 2
-  const device3 = await prisma.device.upsert({
-    where: { serialNumber: "HE-002" },
-    update: {},
-    create: {
-      serialNumber: "HE-002",
-      name: "Heat Exchanger Unit 2",
-      type: "Heat Exchanger",
-      subtype: "Fixed",
-      siteId: site2.id,
-      createdBy: siteInCharge2.id,
-      assignedTo: clusterSupervisor3.id,
-      attributes: {
-        capacity: "3000 BTU/hr",
-        material: "Carbon Steel",
-        pressure_rating: "200 PSI",
-      },
-    },
-  });
+  console.log("Created sample resources");
 
-  console.log("Created devices:", device1.name, device2.name, device3.name);
-
-  // Create jobs for device 1
-  await prisma.job.createMany({
-    skipDuplicates: true,
-    data: [
-      {
-        deviceId: device1.id,
-        name: "Pressure Test",
-        status: JobStatus.IN_PROGRESS,
-      },
-      {
-        deviceId: device1.id,
-        name: "Leak Check",
-        status: JobStatus.IN_PROGRESS,
-      },
-      {
-        deviceId: device1.id,
-        name: "Performance Calibration",
-        status: JobStatus.COMPLETED,
-      },
-    ],
-  });
-
-  // Create jobs for device 2
-  await prisma.job.createMany({
-    skipDuplicates: true,
-    data: [
-      {
-        deviceId: device2.id,
-        name: "Flow Rate Test",
-        status: JobStatus.IN_PROGRESS,
-      },
-      {
-        deviceId: device2.id,
-        name: "Vibration Analysis",
-        status: JobStatus.IN_PROGRESS,
-      },
-      {
-        deviceId: device2.id,
-        name: "Motor Alignment",
-        status: JobStatus.CONSTRAINT,
-        comment: "Motor bearing needs replacement",
-      },
-    ],
-  });
-
-  // Create jobs for device 3
-  await prisma.job.createMany({
-    skipDuplicates: true,
-    data: [
-      {
-        deviceId: device3.id,
-        name: "Thermal Efficiency Test",
-        status: JobStatus.IN_PROGRESS,
-      },
-      {
-        deviceId: device3.id,
-        name: "Tube Cleaning",
-        status: JobStatus.COMPLETED,
-      },
-      {
-        deviceId: device3.id,
-        name: "Safety Valve Test",
-        status: JobStatus.IN_PROGRESS,
-      },
-    ],
-  });
+  // Insert 30 Heat Exchanger devices for site 1
+  const heatExchangerSubtypes = [
+    { code: "UT", name: "U Tube" },
+    { code: "FX", name: "Fixed" },
+    { code: "FL", name: "Floating" },
+  ];
+  const jobNames = [
+    "blinding",
+    "channel and floating head dome",
+    "bundle pulling",
+    "bundle cleaning",
+    "shell cleaning",
+    "bundle cleaning and shifting",
+    "bundle boxing",
+    "shell side hydrotesting",
+    "tube side hydrotesting",
+    "final hydrotesting",
+    "deblinding",
+  ];
+  let deviceCount = 1;
+  for (const subtype of heatExchangerSubtypes) {
+    for (let i = 1; i <= 10; i++) {
+      const serial = `HE-${subtype.code}-${String(i).padStart(3, "0")}`;
+      const device = await prisma.device.create({
+        data: {
+          serialNumber: serial,
+          name: `Heat Exchanger ${subtype.name} ${i}`,
+          type: "Heat Exchanger",
+          subtype: subtype.name,
+          siteId: site1.id,
+          createdBy: siteInCharge1.id,
+          attributes: {
+            no_of_tubes: 100 + i,
+            exchanger_length: `${5 + i * 0.1} m`,
+            tube_bundle_length: `${4 + i * 0.1} m`,
+            tube_bundle_weight: `${1000 + i * 10} kg`,
+            exchanger_weight: `${2000 + i * 10} kg`,
+            location: `Bay ${Math.ceil(i / 2)}`,
+          },
+        },
+      });
+      await prisma.job.createMany({
+        data: jobNames.map((name) => ({
+          deviceId: device.id,
+          name,
+          status: JobStatus.IN_PROGRESS,
+        })),
+      });
+      deviceCount++;
+    }
+  }
 
   console.log("Created sample jobs for all devices");
 
-  // Seed sample resources
-  await prisma.resource.createMany({
-    data: [
-      {
-        name: "Forklift A",
-        regNo: "FL-001",
-        type: "Forklift",
-        status: "WORKING",
-        attributes: { capacity: "2T", manufacturer: "Toyota" },
+  // Insert 20 Vessel devices for site 1
+  const vesselJobNames = [
+    "Blinding",
+    "vessel entry",
+    "Internal cleaning",
+    "Inspection",
+    "fabrication and repair",
+    "second inspection",
+    "boxup",
+    "Pneumatic test",
+    "Hydrotesting",
+    "Deblinding",
+  ];
+  for (let i = 1; i <= 20; i++) {
+    const serial = `VSL-${String(i).padStart(3, "0")}`;
+    const device = await prisma.device.create({
+      data: {
+        serialNumber: serial,
+        name: `Vessel ${i}`,
+        type: "Vessel",
+        subtype: null,
         siteId: site1.id,
-        allocatedAt: new Date(),
+        createdBy: siteInCharge1.id,
+        attributes: {
+          diameter: `${2 + i * 0.1} m`,
+          height: `${5 + i * 0.2} m`,
+          volume: `${10 + i * 0.5} m3`,
+          Hydrotest_Pr: `${10 + i} bar`,
+          Pneumatic_ar_water: `${5 + i} bar`,
+        },
       },
-      {
-        name: "Crane B",
-        regNo: "CR-002",
-        type: "Crane",
+    });
+    await prisma.job.createMany({
+      data: vesselJobNames.map((name) => ({
+        deviceId: device.id,
+        name,
+        status: JobStatus.IN_PROGRESS,
+      })),
+    });
+  }
+
+  console.log("Created sample jobs for all devices");
+
+  // Insert 20 Column devices for site 1
+  const columnJobNames = [
+    "blinding",
+    "manhole open",
+    "vessel entry",
+    "manual opening",
+    "tray remover",
+    "internal cleaning",
+    "Inspecting",
+    "Recommendation",
+    "Fabrication",
+    "tray boxup",
+    "manual boxup",
+    "Inspection",
+  ];
+  for (let i = 1; i <= 20; i++) {
+    const serial = `COL-${String(i).padStart(3, "0")}`;
+    const device = await prisma.device.create({
+      data: {
+        serialNumber: serial,
+        name: `Column ${i}`,
+        type: "Column",
+        subtype: null,
+        siteId: site1.id,
+        createdBy: siteInCharge1.id,
+        attributes: {
+          no_of_trays: 10 + i,
+          height: `${20 + i * 0.5} m`,
+          diameter: `${2 + i * 0.05} m`,
+          wear_gap: `${0.5 + i * 0.01} m`,
+          wear_height: `${1 + i * 0.02} m`,
+        },
+      },
+    });
+    await prisma.job.createMany({
+      data: columnJobNames.map((name) => ({
+        deviceId: device.id,
+        name,
+        status: JobStatus.IN_PROGRESS,
+      })),
+    });
+  }
+
+  console.log("Created sample jobs for all devices");
+
+  // Insert 10 HPWJ resources (unallocated)
+  for (let i = 1; i <= 10; i++) {
+    await prisma.resource.create({
+      data: {
+        name: `HPWJ ${i}`,
+        regNo: `HPWJ-${String(i).padStart(3, "0")}`,
+        type: "HPWJ",
         status: "FREE",
-        attributes: { reach: "10m", manufacturer: "Liebherr" },
+        attributes: {
+          capacity: `${100 + i * 10} bar`,
+          lances: 2 + (i % 3),
+          make: ["Karcher", "Jetstream", "AquaDyne"][i % 3],
+        },
         siteId: null,
         allocatedAt: null,
       },
-      {
-        name: "Loader C",
-        regNo: "LD-003",
-        type: "Loader",
-        status: "BREAKDOWN",
-        attributes: { power: "150HP", manufacturer: "Caterpillar" },
-        siteId: site2.id,
-        allocatedAt: new Date(),
-        dispatchDate: new Date(),
+    });
+  }
+  // Insert 10 Scaffolding resources (unallocated)
+  for (let i = 1; i <= 10; i++) {
+    await prisma.resource.create({
+      data: {
+        name: `Scaffolding ${i}`,
+        regNo: `SCF-${String(i).padStart(3, "0")}`,
+        type: "Scaffolding",
+        status: "FREE",
+        attributes: {
+          pipes: 50 + i * 5,
+          clamps: 100 + i * 10,
+          gratings: 10 + i,
+        },
+        siteId: null,
+        allocatedAt: null,
       },
-    ],
-  });
-
-  console.log("Created sample resources");
+    });
+  }
 
   console.log("Database seeding completed successfully!");
   console.log("\nSample login credentials:");
