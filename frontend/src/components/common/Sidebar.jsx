@@ -23,7 +23,7 @@ const Sidebar = () => {
     {
       name: "Devices",
       href: "/devices",
-      roles: [ROLES.SITE_INCHARGE, ROLES.CLUSTER_SUPERVISOR],
+      roles: [ROLES.SITE_INCHARGE],
     },
 
     {

@@ -57,8 +57,8 @@ const DeviceFilters = ({
           </label>
           <select
             className="input-field"
-            value={filters.deviceStatus}
-            onChange={(e) => onFilterChange("deviceStatus", e.target.value)}
+            value={filters.status}
+            onChange={(e) => onFilterChange("status", e.target.value)}
           >
             <option value="">All</option>
             <option value="COMPLETED">Completed</option>
@@ -73,8 +73,8 @@ const DeviceFilters = ({
           </label>
           <select
             className="input-field"
-            value={filters.deviceType}
-            onChange={(e) => onFilterChange("deviceType", e.target.value)}
+            value={filters.type}
+            onChange={(e) => onFilterChange("type", e.target.value)}
           >
             <option value="">All</option>
             {deviceTypes.map((type) => (
@@ -91,8 +91,8 @@ const DeviceFilters = ({
           </label>
           <select
             className="input-field"
-            value={filters.deviceSubtype}
-            onChange={(e) => onFilterChange("deviceSubtype", e.target.value)}
+            value={filters.subtype}
+            onChange={(e) => onFilterChange("subtype", e.target.value)}
           >
             <option value="">All</option>
             {deviceSubtypes.map((subtype) => (

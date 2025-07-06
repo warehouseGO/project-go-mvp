@@ -29,13 +29,6 @@ export const USER_STATUS_COLORS = {
   [USER_STATUS.INACTIVE]: "bg-gray-100 text-gray-800",
 };
 
-export const DEVICE_TYPES = [
-  "Heat Exchanger",
-  "Pump",
-  "Compressor",
-  "Valve",
-  "Tank",
-  "Filter",
-];
+export const DEVICE_TYPES = ["Heat Exchanger", "Vessel", "Column"];
 
 export const DEVICE_SUBTYPES = ["Floating", "Fixed", "Portable", "Stationary"];

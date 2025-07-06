@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import StatusBadge from "./StatusBadge";
 import { JOB_STATUS } from "../../utils/constants";
 import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
@@ -19,8 +19,21 @@ const DeviceTable = ({
   assignLoading = false,
   onEditDevice = null,
   onDeleteDevice = null,
+  selectedDeviceIds: controlledSelectedDeviceIds,
+  setSelectedDeviceIds: setControlledSelectedDeviceIds,
 }) => {
-  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
+  const isControlled =
+    controlledSelectedDeviceIds !== undefined &&
+    setControlledSelectedDeviceIds !== undefined;
+  const [internalSelectedDeviceIds, setInternalSelectedDeviceIds] = useState(
+    []
+  );
+  const selectedDeviceIds = isControlled
+    ? controlledSelectedDeviceIds
+    : internalSelectedDeviceIds;
+  const setSelectedDeviceIds = isControlled
+    ? setControlledSelectedDeviceIds
+    : setInternalSelectedDeviceIds;
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [assignUserId, setAssignUserId] = useState("");
   const [assignError, setAssignError] = useState("");
@@ -91,7 +104,6 @@ const DeviceTable = ({
 
   const getTableHeaders = () => {
     const headers = [];
-    if (enableMultiSelect) headers.push({ key: "select", label: "" });
     headers.push({ key: "serialNumber", label: "Serial No" });
     headers.push({ key: "name", label: "Name" });
     headers.push({ key: "type", label: "Type" });
@@ -161,6 +173,19 @@ const DeviceTable = ({
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
+            {enableMultiSelect && (
+              <th className="px-2 py-3">
+                <input
+                  type="checkbox"
+                  checked={
+                    selectedDeviceIds.length === devices.length &&
+                    devices.length > 0
+                  }
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  title="Select All Filtered"
+                />
+              </th>
+            )}
             {getTableHeaders().map((header) => (
               <th
                 key={header.key}

@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { Doughnut } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
-import { DEVICE_TYPES } from "../../utils/constants";
-
+import { DEVICE_TYPES, DEVICE_SUBTYPES } from "../../utils/constants";
+import { useNavigate } from "react-router-dom";
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const statusColors = {
@@ -19,7 +19,13 @@ const statusLabels = {
   TOTAL: "Total Devices",
 };
 
-const SiteAnalytics = ({ siteData }) => {
+const SiteAnalytics = ({
+  siteData,
+  goToDevicesWithFilters,
+  deviceTypes,
+  deviceSubtypes,
+}) => {
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
 
@@ -68,27 +74,49 @@ const SiteAnalytics = ({ siteData }) => {
     );
   }).length;
 
-  // Device type distribution (filtered)
-  const deviceTypeCounts = DEVICE_TYPES.map(
-    (type) => filteredDevices.filter((d) => d.type === type).length
-  );
-  const deviceTypeData = {
-    labels: DEVICE_TYPES,
-    datasets: [
-      {
-        data: deviceTypeCounts,
-        backgroundColor: [
-          "#3B82F6",
-          "#10B981",
-          "#F59E42",
-          "#6366F1",
-          "#F43F5E",
-          "#FBBF24",
+  // Device type/subtype distribution (filtered)
+  const getChartData = () => {
+    if (typeFilter) {
+      // Show subtypes of the selected type
+      const subtypeCounts = deviceSubtypes.map(
+        (subtype) => filteredDevices.filter((d) => d.subtype === subtype).length
+      );
+      return {
+        labels: deviceSubtypes,
+        datasets: [
+          {
+            data: subtypeCounts,
+            backgroundColor: ["#3B82F6", "#10B981", "#F59E42", "#6366F1"],
+            borderWidth: 1,
+          },
         ],
-        borderWidth: 1,
-      },
-    ],
+      };
+    } else {
+      // Show device types
+      const deviceTypeCounts = deviceTypes.map(
+        (type) => filteredDevices.filter((d) => d.type === type).length
+      );
+      return {
+        labels: deviceTypes,
+        datasets: [
+          {
+            data: deviceTypeCounts,
+            backgroundColor: [
+              "#3B82F6",
+              "#10B981",
+              "#F59E42",
+              "#6366F1",
+              "#F43F5E",
+              "#FBBF24",
+            ],
+            borderWidth: 1,
+          },
+        ],
+      };
+    }
   };
+
+  const deviceTypeData = getChartData();
 
   // Supervisor analytics table (use filteredDevices for all calculations)
   const supervisors = siteData.users.filter(
@@ -147,7 +175,7 @@ const SiteAnalytics = ({ siteData }) => {
             onChange={(e) => setTypeFilter(e.target.value)}
           >
             <option value="">All</option>
-            {DEVICE_TYPES.map((type) => (
+            {deviceTypes.map((type) => (
               <option key={type} value={type}>
                 {type}
               </option>
@@ -157,30 +185,83 @@ const SiteAnalytics = ({ siteData }) => {
       </div>
       {/* Quick Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className={`card border ${statusColors.TOTAL}`}>
+        <div
+          className={`card border ${statusColors.TOTAL}`}
+          style={{ cursor: goToDevicesWithFilters ? "pointer" : undefined }}
+          onClick={() => goToDevicesWithFilters({})}
+        >
           <div className="text-3xl font-bold">{totalDevices}</div>
           <div className="text-sm font-medium mt-1">Total Devices</div>
         </div>
-        <div className={`card border ${statusColors.COMPLETED}`}>
+        <div
+          className={`card border ${statusColors.COMPLETED}`}
+          style={{ cursor: goToDevicesWithFilters ? "pointer" : undefined }}
+          onClick={() =>
+            goToDevicesWithFilters({ status: "COMPLETED", type: typeFilter })
+          }
+        >
           <div className="text-3xl font-bold">{completedDevices}</div>
           <div className="text-sm font-medium mt-1">Completed</div>
         </div>
-        <div className={`card border ${statusColors.IN_PROGRESS}`}>
+        <div
+          className={`card border ${statusColors.IN_PROGRESS}`}
+          style={{ cursor: goToDevicesWithFilters ? "pointer" : undefined }}
+          onClick={() =>
+            goToDevicesWithFilters({
+              status: "IN_PROGRESS",
+              type: typeFilter,
+            })
+          }
+        >
           <div className="text-3xl font-bold">{inProgressDevices}</div>
           <div className="text-sm font-medium mt-1">In Progress</div>
         </div>
-        <div className={`card border ${statusColors.CONSTRAINT}`}>
+        <div
+          className={`card border ${statusColors.CONSTRAINT}`}
+          style={{ cursor: goToDevicesWithFilters ? "pointer" : undefined }}
+          onClick={() =>
+            goToDevicesWithFilters({
+              status: "CONSTRAINT",
+              type: typeFilter,
+            })
+          }
+        >
           <div className="text-3xl font-bold">{constraintDevices}</div>
           <div className="text-sm font-medium mt-1">Constraint</div>
         </div>
       </div>
-      {/* Device Type Pie Chart */}
+      {/* Device Type/Subtype Pie Chart */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center">
           <h3 className="text-lg font-semibold mb-4">
-            Device Type Distribution
+            {typeFilter
+              ? `${typeFilter} Subtype Distribution`
+              : "Device Type Distribution"}
           </h3>
-          <Doughnut data={deviceTypeData} />
+          <Doughnut
+            data={deviceTypeData}
+            options={{
+              onClick: (evt, elements) => {
+                if (elements && elements.length > 0 && goToDevicesWithFilters) {
+                  const idx = elements[0].index;
+                  if (typeFilter) {
+                    // Clicking on subtype when type is filtered
+                    goToDevicesWithFilters({
+                      type: typeFilter,
+                      subtype: deviceSubtypes[idx],
+                      status: statusFilter,
+                    });
+                  } else {
+                    // Clicking on type when no type filter
+                    goToDevicesWithFilters({
+                      type: deviceTypes[idx],
+                      status: statusFilter,
+                    });
+                  }
+                }
+              },
+            }}
+          />
         </div>
         {/* Supervisor Analytics Table */}
         <div className="bg-white rounded-lg shadow p-6 overflow-x-auto">
@@ -213,7 +294,30 @@ const SiteAnalytics = ({ siteData }) => {
                     }
                   >
                     <td className="px-4 py-2 font-medium text-gray-900">
-                      {row.name}
+                      <span
+                        style={{
+                          cursor: goToDevicesWithFilters
+                            ? "pointer"
+                            : undefined,
+                        }}
+                        onClick={() =>
+                          goToDevicesWithFilters(
+                            row.role.toUpperCase().includes("CLUSTER")
+                              ? {
+                                  clusterSupervisor: row.id,
+                                  type: typeFilter,
+                                  status: statusFilter,
+                                }
+                              : {
+                                  siteSupervisor: row.id,
+                                  type: typeFilter,
+                                  status: statusFilter,
+                                }
+                          )
+                        }
+                      >
+                        {row.name}
+                      </span>
                     </td>
                     <td className="px-4 py-2 text-gray-700">{row.role}</td>
                     <td className="px-4 py-2 text-center">

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { devicesAPI, dashboardAPI } from "../utils/api";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import DeviceTable from "../components/common/DeviceTable";
 import DeviceFilters from "../components/common/DeviceFilters";
@@ -8,256 +7,171 @@ import DeviceModal from "../components/common/DeviceModal";
 import AttributesModal from "../components/common/AttributesModal";
 import StatusBadge from "../components/common/StatusBadge";
 import { JOB_STATUS } from "../utils/constants";
+import {
+  SiteInChargeDashboardProvider,
+  useSiteInChargeDashboard,
+} from "../context/SiteInChargeDashboardContext";
+import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 
-const Devices = () => {
-  const { user } = useAuth();
-  const [filteredDevices, setFilteredDevices] = useState([]);
-  const [siteData, setSiteData] = useState(null);
+const DevicesContent = () => {
+  const {
+    devices,
+    users,
+    deviceTypes,
+    deviceSubtypes,
+    loading,
+    error,
+    addDevice,
+    editDevice,
+    deleteDevice,
+    refetch,
+    assignDevicesToSiteSupervisor,
+  } = useSiteInChargeDashboard();
   const [showAddModal, setShowAddModal] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
-  const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [assignLoading, setAssignLoading] = useState(false);
-  const [assignSupervisorId, setAssignSupervisorId] = useState("");
-  const [assignError, setAssignError] = useState("");
-
-  // Filter states
-  const [filters, setFilters] = useState({
-    siteSupervisor: "",
-    clusterSupervisor: "",
-    deviceStatus: "",
-    deviceType: "",
-    deviceSubtype: "",
-  });
-
-  // Device management state
-  const [devices, setDevices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [expandedDeviceId, setExpandedDeviceId] = useState(null);
   const [showAttrModal, setShowAttrModal] = useState(false);
   const [attrModalData, setAttrModalData] = useState(null);
-  const [editDevice, setEditDevice] = useState(null);
+  const [editDeviceData, setEditDeviceData] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
-  const [deleteDevice, setDeleteDevice] = useState(null);
+  const [deleteDeviceData, setDeleteDeviceData] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
 
-  useEffect(() => {
-    if (user?.siteId) {
-      fetchData();
-    }
-  }, [user]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { siteId } = useParams();
 
-  useEffect(() => {
-    applyFilters();
-  }, [devices, filters]);
-
-  const fetchData = async () => {
-    try {
-      const siteResponse = await dashboardAPI.siteInChargeDashboard(
-        user.siteId
-      );
-      setSiteData(siteResponse.data);
-      setDevices(siteResponse.data.devices);
-    } catch (err) {
-      setError("Failed to fetch devices data");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  // Read filters from URL
+  const filters = {
+    status: searchParams.get("status") || "",
+    type: searchParams.get("type") || "",
+    subtype: searchParams.get("subtype") || "",
+    siteSupervisor: searchParams.get("siteSupervisor") || "",
+    clusterSupervisor: searchParams.get("clusterSupervisor") || "",
   };
-  const getDeviceStatus = (device) => {
-    if (!device.jobs || device.jobs.length === 0) {
-      return "IN_PROGRESS";
-    }
 
-    const statuses = device.jobs.map((j) => j.status);
-
-    if (statuses.every((s) => s === JOB_STATUS.COMPLETED)) {
-      return JOB_STATUS.COMPLETED;
-    }
-
-    if (statuses.includes(JOB_STATUS.CONSTRAINT)) {
-      return JOB_STATUS.CONSTRAINT;
-    }
-
-    if (statuses.includes(JOB_STATUS.IN_PROGRESS)) {
-      return JOB_STATUS.IN_PROGRESS;
-    }
-    return "IN_PROGRESS";
+  // Update filters in URL
+  const updateFilter = (key, value) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value) newParams.set(key, value);
+    else newParams.delete(key);
+    setSearchParams(newParams);
   };
+
+  // Reset selection on filter change
+  useEffect(() => {
+    setSelectedDeviceIds([]);
+  }, [
+    filters.siteSupervisor,
+    filters.clusterSupervisor,
+    filters.status,
+    filters.type,
+    filters.subtype,
+  ]);
 
   // Get all site supervisors and cluster supervisors for dropdowns
   const siteSupervisors =
-    siteData?.users.filter((u) => u.role === "SITE_SUPERVISOR") || [];
+    users?.filter((u) => u.role === "SITE_SUPERVISOR") || [];
   const clusterSupervisors =
-    siteData?.users.filter((u) => u.role === "CLUSTER_SUPERVISOR") || [];
+    users?.filter((u) => u.role === "CLUSTER_SUPERVISOR") || [];
 
-  const applyFilters = () => {
-    let filtered = [...devices];
-
-    // If cluster supervisor is selected, filter by assignedTo
-    if (filters.clusterSupervisor) {
-      filtered = filtered.filter(
-        (device) =>
-          String(device.assignedTo) === String(filters.clusterSupervisor)
-      );
-    } else if (filters.siteSupervisor) {
-      // If site supervisor is selected, get all cluster supervisors under that site supervisor
-      const clusterIds = clusterSupervisors
-        .filter(
-          (cs) => String(cs.superiorId) === String(filters.siteSupervisor)
-        )
-        .map((cs) => cs.id);
-      filtered = filtered.filter(
-        (device) => device.assignedTo && clusterIds.includes(device.assignedTo)
-      );
-    }
-
-    if (filters.deviceStatus) {
-      filtered = filtered.filter((device) => {
-        if (!device.jobs || device.jobs.length === 0)
-          return filters.deviceStatus === "IN_PROGRESS";
-        const statuses = device.jobs.map((j) => j.status);
-        if (filters.deviceStatus === "COMPLETED") {
-          return statuses.every((s) => s === "COMPLETED");
-        } else if (filters.deviceStatus === "CONSTRAINT") {
-          return statuses.includes("CONSTRAINT");
-        } else if (filters.deviceStatus === "IN_PROGRESS") {
-          return (
-            statuses.includes("IN_PROGRESS") && !statuses.includes("CONSTRAINT")
-          );
-        }
-        return true;
-      });
-    }
-
-    if (filters.deviceType) {
-      filtered = filtered.filter(
-        (device) => device.type === filters.deviceType
-      );
-    }
-
-    if (filters.deviceSubtype) {
-      filtered = filtered.filter(
-        (device) => device.subtype === filters.deviceSubtype
-      );
-    }
-
-    setFilteredDevices(filtered);
-  };
-
-  const handleFilterChange = (filterKey, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [filterKey]: value,
-      ...(filterKey === "siteSupervisor" ? { clusterSupervisor: "" } : {}),
-      ...(filterKey === "clusterSupervisor" ? { siteSupervisor: "" } : {}),
-    }));
-  };
-
-  const handleClearFilters = () => {
-    setFilters({
-      siteSupervisor: "",
-      clusterSupervisor: "",
-      deviceStatus: "",
-      deviceType: "",
-      deviceSubtype: "",
+  // Filtering logic
+  let filtered = [...(devices || [])];
+  if (filters.siteSupervisor) {
+    filtered = filtered.filter(
+      (device) =>
+        String(device.siteSupervisorId) === String(filters.siteSupervisor)
+    );
+  }
+  if (filters.clusterSupervisor) {
+    filtered = filtered.filter(
+      (device) =>
+        String(device.assignedTo) === String(filters.clusterSupervisor)
+    );
+  }
+  if (filters.status) {
+    filtered = filtered.filter((device) => {
+      if (!device.jobs || device.jobs.length === 0)
+        return filters.status === "IN_PROGRESS";
+      const statuses = device.jobs.map((j) => j.status);
+      if (filters.status === "COMPLETED") {
+        return statuses.every((s) => s === "COMPLETED");
+      } else if (filters.status === "CONSTRAINT") {
+        return statuses.includes("CONSTRAINT");
+      } else if (filters.status === "IN_PROGRESS") {
+        return (
+          statuses.includes("IN_PROGRESS") && !statuses.includes("CONSTRAINT")
+        );
+      }
+      return true;
     });
-  };
+  }
+  if (filters.type) {
+    filtered = filtered.filter((device) => device.type === filters.type);
+  }
+  if (filters.subtype) {
+    filtered = filtered.filter((device) => device.subtype === filters.subtype);
+  }
 
-  const handleShowAttributes = (attributes) => {
-    setAttrModalData(attributes);
-    setShowAttrModal(true);
-  };
-
-  const handleShowJobs = (deviceId) => {
-    setExpandedDeviceId(expandedDeviceId === deviceId ? null : deviceId);
-  };
-
+  // Device add/edit/delete handlers
   const handleAddDevice = async (deviceData) => {
+    setAddLoading(true);
     try {
-      setAddLoading(true);
-      await devicesAPI.createDevice({
-        ...deviceData,
-        siteId: user.siteId,
-        createdBy: user.id,
-      });
+      await addDevice(deviceData);
       setShowAddModal(false);
-      fetchData(); // Refresh data
-    } catch (err) {
-      setError("Failed to create device");
-      console.error(err);
+      refetch();
+    } catch {
+      // Optionally show error
     } finally {
       setAddLoading(false);
     }
   };
-
-  const getAssignedUser = (device) => {
-    if (!device.assignedTo || !siteData?.users) return "Unassigned";
-    const assignedUser = siteData.users.find((u) => u.id === device.assignedTo);
-    return assignedUser
-      ? `${assignedUser.name} (${assignedUser.role})`
-      : "Unassigned";
-  };
-
-  // Get unique device types and subtypes for filter options
-  const deviceTypes = [...new Set(devices.map((d) => d.type))];
-  const deviceSubtypes = [
-    ...new Set(devices.map((d) => d.subtype).filter(Boolean)),
-  ];
-
-  // Bulk assign logic for Site In-Charge
-  const handleBulkAssign = async (deviceIds, supervisorId) => {
-    setAssignLoading(true);
-    setAssignError("");
-
-    try {
-      await devicesAPI.assignDevicesToSiteSupervisor({
-        deviceIds,
-        siteSupervisorId: supervisorId,
-      });
-      fetchData();
-    } catch (err) {
-      setAssignError("Failed to assign devices.");
-    } finally {
-      setAssignLoading(false);
-    }
-  };
-
   const handleEditDevice = (device) => {
-    setEditDevice(device);
+    setEditDeviceData(device);
   };
-
   const handleEditDeviceSubmit = async (deviceData) => {
     setEditLoading(true);
     try {
-      await devicesAPI.updateDevice(editDevice.id, deviceData);
-      setEditDevice(null);
-      fetchData();
-    } catch (err) {
-      setError("Failed to update device");
+      await editDevice(editDeviceData.id, deviceData);
+      setEditDeviceData(null);
+      refetch();
+    } catch {
+      // Optionally show error
     } finally {
       setEditLoading(false);
     }
   };
-
   const handleDeleteDevice = (device) => {
-    setDeleteDevice(device);
+    setDeleteDeviceData(device);
     setDeleteError("");
   };
-
   const handleConfirmDelete = async () => {
     setDeleteLoading(true);
     setDeleteError("");
     try {
-      await devicesAPI.deleteDevice(deleteDevice.id);
-      setDeleteDevice(null);
-      fetchData();
-    } catch (err) {
+      await deleteDevice(deleteDeviceData.id);
+      setDeleteDeviceData(null);
+      refetch();
+    } catch {
       setDeleteError("Failed to delete device");
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  // Bulk assign handler
+  const handleBulkAssign = async (deviceIds, siteSupervisorId) => {
+    setAssignLoading(true);
+    try {
+      await assignDevicesToSiteSupervisor({ deviceIds, siteSupervisorId });
+      refetch();
+    } catch {
+      // Optionally show error
+    } finally {
+      setAssignLoading(false);
     }
   };
 
@@ -266,72 +180,50 @@ const Devices = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Devices Management
-          </h1>
-          <p className="text-gray-600">
-            Manage and monitor all devices in your site
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button className="btn-primary" onClick={() => setShowAddModal(true)}>
-            + Add New Device
-          </button>
-        </div>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-2xl font-bold text-gray-900">Devices</h1>
+        <button className="btn-primary" onClick={() => setShowAddModal(true)}>
+          + Add Device
+        </button>
       </div>
-
-      {/* Filters */}
       <DeviceFilters
         filters={filters}
-        onFilterChange={handleFilterChange}
-        onClearFilters={handleClearFilters}
+        onFilterChange={updateFilter}
+        onClearFilters={() => setSearchParams({})}
         deviceTypes={deviceTypes}
         deviceSubtypes={deviceSubtypes}
         siteSupervisors={siteSupervisors}
         clusterSupervisors={clusterSupervisors}
       />
-
-      {/* Results Summary */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-600">
-          Showing {filteredDevices.length} of {devices.length} devices
-        </p>
-      </div>
-
-      {/* Devices Table */}
-      {filteredDevices.length === 0 ? (
-        <div className="card text-center py-12">
-          <p className="text-gray-500">
-            {devices.length === 0
-              ? "No devices found."
-              : "No devices match the current filters."}
-          </p>
-        </div>
-      ) : (
-        <div className="card">
-          <DeviceTable
-            devices={filteredDevices}
-            onShowAttributes={handleShowAttributes}
-            onShowJobs={handleShowJobs}
-            expandedDeviceId={expandedDeviceId}
-            showAssignedTo={true}
-            getAssignedUser={getAssignedUser}
-            showActions={true}
-            enableMultiSelect={true}
-            assignableUsers={siteSupervisors}
-            onBulkAssign={handleBulkAssign}
-            assignLabel="Assign to Site Supervisor"
-            assignLoading={assignLoading}
-            onEditDevice={handleEditDevice}
-            onDeleteDevice={handleDeleteDevice}
-          />
-        </div>
-      )}
-
-      {/* Add Device Modal */}
+      <DeviceTable
+        devices={filtered}
+        onShowAttributes={(attributes) => {
+          setAttrModalData(attributes);
+          setShowAttrModal(true);
+        }}
+        onShowJobs={(deviceId) =>
+          setExpandedDeviceId(expandedDeviceId === deviceId ? null : deviceId)
+        }
+        expandedDeviceId={expandedDeviceId}
+        showAssignedTo={true}
+        getAssignedUser={(device) => {
+          if (!device.assignedTo || !users) return "Unassigned";
+          const assignedUser = users.find((u) => u.id === device.assignedTo);
+          return assignedUser
+            ? `${assignedUser.name} (${assignedUser.role})`
+            : "Unassigned";
+        }}
+        showActions={true}
+        enableMultiSelect={true}
+        assignableUsers={siteSupervisors}
+        onEditDevice={handleEditDevice}
+        onDeleteDevice={handleDeleteDevice}
+        onBulkAssign={handleBulkAssign}
+        assignLabel="Assign to Site Supervisor"
+        assignLoading={assignLoading}
+        selectedDeviceIds={selectedDeviceIds}
+        setSelectedDeviceIds={setSelectedDeviceIds}
+      />
       <DeviceModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -340,35 +232,30 @@ const Devices = () => {
         loading={addLoading}
         siteSupervisors={siteSupervisors}
       />
-
-      {/* Attributes Modal */}
       <AttributesModal
         isOpen={showAttrModal}
         onClose={() => setShowAttrModal(false)}
         attributes={attrModalData}
       />
-
-      {/* Edit Device Modal */}
       <DeviceModal
-        isOpen={!!editDevice}
-        onClose={() => setEditDevice(null)}
+        isOpen={!!editDeviceData}
+        onClose={() => setEditDeviceData(null)}
         mode="edit"
-        device={editDevice}
+        device={editDeviceData}
         onSubmit={handleEditDeviceSubmit}
         loading={editLoading}
         siteSupervisors={siteSupervisors}
       />
-
       {/* Delete Device Confirmation Modal */}
-      {deleteDevice && (
+      {deleteDeviceData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
             <h2 className="text-lg font-semibold mb-4 text-red-700">
               Delete Device
             </h2>
             <p className="mb-4">
-              Are you sure you want to delete <b>{deleteDevice.name}</b> and all
-              its jobs? This action cannot be undone.
+              Are you sure you want to delete <b>{deleteDeviceData.name}</b> and
+              all its jobs? This action cannot be undone.
             </p>
             {deleteError && (
               <div className="text-red-600 mb-2">{deleteError}</div>
@@ -376,7 +263,7 @@ const Devices = () => {
             <div className="flex gap-2 justify-end">
               <button
                 className="btn-secondary"
-                onClick={() => setDeleteDevice(null)}
+                onClick={() => setDeleteDeviceData(null)}
                 disabled={deleteLoading}
               >
                 Cancel
@@ -393,6 +280,17 @@ const Devices = () => {
         </div>
       )}
     </div>
+  );
+};
+
+const Devices = () => {
+  const { user } = useAuth();
+  if (!user?.siteId)
+    return <div className="text-gray-500">No site assigned</div>;
+  return (
+    <SiteInChargeDashboardProvider siteId={user.siteId}>
+      <DevicesContent />
+    </SiteInChargeDashboardProvider>
   );
 };
 

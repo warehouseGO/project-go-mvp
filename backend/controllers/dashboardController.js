@@ -31,7 +31,29 @@ exports.siteInChargeDashboard = async (req, res) => {
       },
     });
     if (!site) return res.status(404).json({ error: "Site not found" });
-    res.json(site);
+
+    // Get unique device types and subtypes for this site
+    const deviceTypesRaw = await prisma.device.findMany({
+      where: { siteId: parseInt(siteId) },
+      select: { type: true },
+      distinct: ["type"],
+    });
+    const deviceTypes = deviceTypesRaw.map((d) => d.type);
+    const deviceSubtypesRaw = await prisma.device.findMany({
+      where: { siteId: parseInt(siteId) },
+      select: { subtype: true },
+      distinct: ["subtype"],
+    });
+    // Filter out null/empty subtypes
+    const deviceSubtypes = deviceSubtypesRaw
+      .map((d) => d.subtype)
+      .filter(Boolean);
+
+    res.json({
+      ...site,
+      deviceTypes,
+      deviceSubtypes,
+    });
   } catch (err) {
     console.error(err);
     res

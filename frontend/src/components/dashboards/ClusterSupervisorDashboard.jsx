@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { devicesAPI, jobsAPI } from "../../utils/api";
+import { devicesAPI, jobsAPI, dashboardAPI } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 import LoadingSpinner from "../common/LoadingSpinner";
 import DeviceTable from "../common/DeviceTable";
@@ -27,11 +27,12 @@ const ClusterSupervisorDashboard = () => {
   const fetchDevices = async () => {
     setLoading(true);
     try {
-      const response = await devicesAPI.getDevices({
-        role: "CLUSTER_SUPERVISOR",
-        userId: user.id,
-      });
-      setDevices(response.data);
+      const response = await dashboardAPI.clusterSupervisorDashboard();
+      setDevices(
+        Array.isArray(response.data.assignedDevices)
+          ? response.data.assignedDevices
+          : []
+      );
       setJobEdits({});
     } catch (err) {
       setError("Failed to fetch devices");
