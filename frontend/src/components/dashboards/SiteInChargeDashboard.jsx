@@ -9,7 +9,8 @@ import LoadingSpinner from "../common/LoadingSpinner";
 import { useAuth } from "../../context/AuthContext";
 
 const SiteAnalyticsContent = () => {
-  const { site, devices, users, loading, error } = useSiteInChargeDashboard();
+  const { site, devices, users, loading, error, deviceTypes, deviceSubtypes } =
+    useSiteInChargeDashboard();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { siteId } = useParams();
@@ -41,6 +42,8 @@ const SiteAnalyticsContent = () => {
       <SiteAnalytics
         siteData={{ ...site, devices, users }}
         goToDevicesWithFilters={goToDevicesWithFilters}
+        deviceTypes={deviceTypes}
+        deviceSubtypes={deviceSubtypes}
       />
     </div>
   );
