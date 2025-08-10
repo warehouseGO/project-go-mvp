@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { JOB_STATUS } from "../../utils/constants";
+import { JOB_STATUS, DEVICE_PRIORITY } from "../../utils/constants";
 
 const DeviceModal = ({
   isOpen,
@@ -16,6 +16,8 @@ const DeviceModal = ({
     name: "",
     type: "",
     subtype: "",
+    priority: DEVICE_PRIORITY.MEDIUM,
+    targetDate: "",
     siteSupervisorId: "",
   });
   const [attributes, setAttributes] = useState([]); // [{key: '', value: ''}]
@@ -30,6 +32,10 @@ const DeviceModal = ({
         name: device.name || "",
         type: device.type || "",
         subtype: device.subtype || "",
+        priority: device.priority || DEVICE_PRIORITY.MEDIUM,
+        targetDate: device.targetDate
+          ? new Date(device.targetDate).toISOString().split("T")[0]
+          : "",
         siteSupervisorId: device.siteSupervisorId
           ? String(device.siteSupervisorId)
           : "",
@@ -51,6 +57,8 @@ const DeviceModal = ({
         name: "",
         type: "",
         subtype: "",
+        priority: DEVICE_PRIORITY.MEDIUM,
+        targetDate: "",
         siteSupervisorId: "",
       });
       setAttributes([]);
@@ -194,6 +202,40 @@ const DeviceModal = ({
                 setFormData((prev) => ({ ...prev, subtype: e.target.value }))
               }
               placeholder="e.g., Floating, Fixed"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Priority *
+            </label>
+            <select
+              className="input-field"
+              value={formData.priority}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, priority: e.target.value }))
+              }
+              required
+            >
+              <option value={DEVICE_PRIORITY.LOW}>Low</option>
+              <option value={DEVICE_PRIORITY.MEDIUM}>Medium</option>
+              <option value={DEVICE_PRIORITY.HIGH}>High</option>
+              <option value={DEVICE_PRIORITY.EXTREME}>Extreme</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Target Completion Date
+            </label>
+            <input
+              type="date"
+              className="input-field"
+              value={formData.targetDate}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, targetDate: e.target.value }))
+              }
+              min={new Date().toISOString().split("T")[0]}
             />
           </div>
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import ResourceTable from "../components/resources/ResourceTable";
 import ResourceModal from "../components/resources/ResourceModal";
@@ -6,28 +6,19 @@ import BulkAllocateModal from "../components/resources/BulkAllocateModal";
 import StatusEditModal from "../components/resources/StatusEditModal";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import {
-  SiteInChargeDashboardProvider,
-  useSiteInChargeDashboard,
-} from "../context/SiteInChargeDashboardContext";
-import {
   OwnerResourceManagementProvider,
   useOwnerResourceManagement,
 } from "../context/OwnerResourceManagementContext";
 import { useSearchParams } from "react-router-dom";
+import { resourcesAPI, sitesAPI } from "../utils/api";
+import { useNavigate } from "react-router-dom";
 
 const ResourceManagementInChargeContent = () => {
   const { user } = useAuth();
-  const {
-    site,
-    loading,
-    error,
-    addResource,
-    editResource,
-    deleteResource,
-    allocateResources,
-    updateResourceStatus,
-    refetch,
-  } = useSiteInChargeDashboard();
+  const [resources, setResources] = useState([]);
+  const [site, setSite] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [selectedResourceIds, setSelectedResourceIds] = useState([]);
   const [showResourceModal, setShowResourceModal] = useState(false);
   const [editResourceData, setEditResourceData] = useState(null);
@@ -36,10 +27,46 @@ const ResourceManagementInChargeContent = () => {
   const [statusEditResource, setStatusEditResource] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
+  const navigate = useNavigate();
 
-  // Resources and sites from context
-  const resources = site?.resources || [];
-  const sites = [site];
+  // Fetch site and resources data
+  const fetchData = useCallback(async () => {
+    if (!user?.siteId) return;
+
+    setLoading(true);
+    setError("");
+    try {
+      // Fetch resources for this site
+      const resourcesResponse = await resourcesAPI.getResources({
+        siteId: user.siteId,
+      });
+      setResources(resourcesResponse.data || []);
+    } catch (err) {
+      setError("Failed to fetch data");
+      console.error("Error fetching data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.siteId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const deleteResource = async (resourceId) => {
+    await resourcesAPI.deleteResource(resourceId);
+  };
+
+  const updateResourceStatus = async (resourceId, statusData) => {
+    await resourcesAPI.updateResourceStatus(resourceId, statusData);
+  };
+
+  const refetch = () => {
+    fetchData();
+  };
+
+  // Sites array for the component (only the current site)
+  const sites = site ? [site] : [];
 
   // URL param-based filters
   const [searchParams, setSearchParams] = useSearchParams();
@@ -69,10 +96,6 @@ const ResourceManagementInChargeContent = () => {
     return true;
   });
 
-  const handleAdd = () => {
-    setEditResourceData(null);
-    setShowResourceModal(true);
-  };
   const handleEdit = (resource) => {
     setEditResourceData(resource);
     setShowResourceModal(true);
@@ -90,21 +113,29 @@ const ResourceManagementInChargeContent = () => {
       setActionLoading(false);
     }
   };
-  const handleBulkAllocate = () => setShowBulkAllocateModal(true);
+
   const handleEditStatus = (resource) => {
     setStatusEditResource(resource);
     setShowStatusEditModal(true);
   };
-  const getSiteName = (siteId) =>
-    sites.find((s) => s.id === siteId)?.name || "-";
 
   if (loading) return <LoadingSpinner size="lg" />;
+  if (error) return <div className="text-red-600">{error}</div>;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
           Resource Management
         </h1>
+        <div className="flex gap-2">
+          <button
+            className="btn-secondary"
+            onClick={() => navigate("/resources/analytics")}
+          >
+            Analytics
+          </button>
+        </div>
       </div>
       {/* Filters */}
       <div className="flex gap-4 mb-4">
@@ -131,7 +162,6 @@ const ResourceManagementInChargeContent = () => {
       </div>
       <ResourceTable
         resources={filteredResources}
-        onEdit={handleEdit}
         onDelete={handleDelete}
         onBulkAllocate={undefined}
         onEditStatus={handleEditStatus}
@@ -139,36 +169,9 @@ const ResourceManagementInChargeContent = () => {
         setSelectedResourceIds={setSelectedResourceIds}
         showActions={true}
         enableMultiSelect={false}
-        sites={sites}
-        getSiteName={getSiteName}
         showEditStatus={true}
       />
-      {/* Modals */}
-      <ResourceModal
-        isOpen={showResourceModal}
-        onClose={() => setShowResourceModal(false)}
-        resource={editResourceData}
-        onSubmit={async (data) => {
-          setActionLoading(true);
-          setActionError("");
-          try {
-            if (editResourceData) {
-              await editResource(editResourceData.id, data);
-            } else {
-              await addResource(data);
-            }
-            setShowResourceModal(false);
-            refetch();
-          } catch {
-            setActionError("Failed to save resource");
-          } finally {
-            setActionLoading(false);
-          }
-        }}
-        loading={actionLoading}
-        sites={sites}
-        mode={editResourceData ? "edit" : "add"}
-      />
+
       <StatusEditModal
         isOpen={showStatusEditModal}
         onClose={() => setShowStatusEditModal(false)}
@@ -176,6 +179,8 @@ const ResourceManagementInChargeContent = () => {
         onSubmit={async (status, dispatchDate) => {
           setActionLoading(true);
           setActionError("");
+          console.log(statusEditResource);
+          console.log(status, dispatchDate);
           try {
             await updateResourceStatus(statusEditResource.id, {
               status,
@@ -214,6 +219,7 @@ const ResourceManagementOwnerContent = () => {
   const [showBulkAllocateModal, setShowBulkAllocateModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
+  const navigate = useNavigate();
 
   // URL param-based filters
   const [searchParams, setSearchParams] = useSearchParams();
@@ -275,9 +281,17 @@ const ResourceManagementOwnerContent = () => {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
           Resource Management
         </h1>
-        <button className="btn-primary" onClick={handleAdd}>
-          + Add Resource
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="btn-secondary"
+            onClick={() => navigate("/resources/analytics")}
+          >
+            Analytics
+          </button>
+          <button className="btn-primary" onClick={handleAdd}>
+            + Add Resource
+          </button>
+        </div>
       </div>
       {/* Filters */}
       <div className="flex gap-4 mb-4">
@@ -386,11 +400,7 @@ const ResourceManagementOwnerContent = () => {
 const ResourceManagement = () => {
   const { user } = useAuth();
   if (user.role === "SITE_INCHARGE") {
-    return (
-      <SiteInChargeDashboardProvider siteId={user.siteId}>
-        <ResourceManagementInChargeContent />
-      </SiteInChargeDashboardProvider>
-    );
+    return <ResourceManagementInChargeContent />;
   }
   if (user.role === "OWNER") {
     return (

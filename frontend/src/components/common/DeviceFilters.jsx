@@ -1,4 +1,5 @@
 import React from "react";
+import { DEVICE_PRIORITY } from "../../utils/constants";
 
 const DeviceFilters = ({
   filters,
@@ -64,6 +65,7 @@ const DeviceFilters = ({
             <option value="COMPLETED">Completed</option>
             <option value="IN_PROGRESS">In Progress</option>
             <option value="CONSTRAINT">Constraint</option>
+            <option value="DELAYED">Delayed</option>
           </select>
         </div>
 
@@ -100,6 +102,23 @@ const DeviceFilters = ({
                 {subtype}
               </option>
             ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Priority
+          </label>
+          <select
+            className="input-field"
+            value={filters.priority}
+            onChange={(e) => onFilterChange("priority", e.target.value)}
+          >
+            <option value="">All</option>
+            <option value={DEVICE_PRIORITY.LOW}>Low</option>
+            <option value={DEVICE_PRIORITY.MEDIUM}>Medium</option>
+            <option value={DEVICE_PRIORITY.HIGH}>High</option>
+            <option value={DEVICE_PRIORITY.EXTREME}>Extreme</option>
           </select>
         </div>
 

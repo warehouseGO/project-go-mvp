@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import StatusBadge from "./StatusBadge";
+import PriorityBadge from "./PriorityBadge";
 import { JOB_STATUS } from "../../utils/constants";
+import { formatDate, isDelayed } from "../../utils/dateUtils";
 import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 const DeviceTable = ({
@@ -47,6 +49,14 @@ const DeviceTable = ({
 
     if (statuses.every((s) => s === JOB_STATUS.COMPLETED)) {
       return JOB_STATUS.COMPLETED;
+    }
+
+    // Check if device is delayed
+    if (device.targetDate) {
+      const jobStatuses = device.jobs?.map((j) => j.status) || [];
+      if (isDelayed(device.targetDate, jobStatuses)) {
+        return JOB_STATUS.DELAYED;
+      }
     }
 
     if (statuses.includes(JOB_STATUS.CONSTRAINT)) {
@@ -108,6 +118,8 @@ const DeviceTable = ({
     headers.push({ key: "name", label: "Name" });
     headers.push({ key: "type", label: "Type" });
     headers.push({ key: "subtype", label: "Subtype" });
+    headers.push({ key: "priority", label: "Priority" });
+    headers.push({ key: "targetDate", label: "Target Date" });
     if (showAssignedTo) {
       headers.push({ key: "assignedTo", label: "Assigned To" });
     }
@@ -118,7 +130,7 @@ const DeviceTable = ({
   };
 
   const getColSpan = () => {
-    let span = 4; // serial, name, type, subtype
+    let span = 6; // serial, name, type, subtype, priority, targetDate
     if (showAssignedTo) span += 1;
     span += 3; // status, attributes, jobs
     if (enableMultiSelect) span += 1;
@@ -222,6 +234,27 @@ const DeviceTable = ({
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-900">
                   {device.subtype}
+                </td>
+                <td className="px-4 py-3">
+                  <PriorityBadge priority={device.priority} />
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900">
+                  {device.targetDate ? (
+                    <span
+                      className={
+                        isDelayed(
+                          device.targetDate,
+                          device.jobs?.map((j) => j.status)
+                        )
+                          ? "text-red-600 font-medium"
+                          : ""
+                      }
+                    >
+                      {formatDate(device.targetDate)}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 italic">Not set</span>
+                  )}
                 </td>
                 {showAssignedTo && (
                   <td className="px-4 py-3 text-sm text-gray-900">

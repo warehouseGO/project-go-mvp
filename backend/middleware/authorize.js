@@ -1,10 +1,13 @@
 const authorize = (requiredRoles) => (req, res, next) => {
   try {
     const { roles } = req.user;
+
     const required = Array.isArray(requiredRoles)
       ? requiredRoles
       : [requiredRoles];
+
     if (!roles || !roles.some((role) => required.includes(role.roleName))) {
+      console.log("Forbidden");
       return res.status(403).json({ error: "Forbidden" });
     }
     next();

@@ -3,7 +3,9 @@ import { dashboardAPI } from "../../utils/api";
 import LoadingSpinner from "../common/LoadingSpinner";
 import DeviceTable from "../common/DeviceTable";
 import DeviceFilters from "../common/DeviceFilters";
+import ConstraintReportModal from "../common/ConstraintReportModal";
 import { useNavigate } from "react-router-dom";
+import { useConstraintReport } from "../../hooks/useConstraintReport";
 
 const OwnerDashboard = () => {
   const [sites, setSites] = useState([]);
@@ -35,6 +37,14 @@ const OwnerDashboard = () => {
     siteSupervisors: "",
     clusterSupervisors: "",
   });
+  const [showConstraintReport, setShowConstraintReport] = useState(false);
+  const {
+    reportData,
+    loading: reportLoading,
+    error: reportError,
+    fetchAllSitesConstraintReport,
+    clearReport,
+  } = useConstraintReport();
 
   const navigate = useNavigate();
 
@@ -212,15 +222,30 @@ const OwnerDashboard = () => {
 
   const totalJobs = 0;
 
+  const handleOpenConstraintReport = async () => {
+    setShowConstraintReport(true);
+    await fetchAllSitesConstraintReport();
+  };
+
+  const handleCloseConstraintReport = () => {
+    setShowConstraintReport(false);
+    clearReport();
+  };
+
   return (
     <div className="space-y-6 relative">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Multi-Site Overview
-        </h1>
-        <p className="text-gray-600">
-          Manage all warehouse sites and monitor overall performance
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Multi-Site Overview
+          </h1>
+          <p className="text-gray-600">
+            Manage all warehouse sites and monitor overall performance
+          </p>
+        </div>
+        <button onClick={handleOpenConstraintReport} className="btn-secondary">
+          View All Constraints Report
+        </button>
       </div>
 
       {/* Sites Grid */}
@@ -557,6 +582,15 @@ const OwnerDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Constraint Report Modal */}
+      <ConstraintReportModal
+        isOpen={showConstraintReport}
+        onClose={handleCloseConstraintReport}
+        reportData={reportData}
+        loading={reportLoading}
+        error={reportError}
+      />
     </div>
   );
 };

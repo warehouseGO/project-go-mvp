@@ -12,6 +12,7 @@ import {
   useSiteInChargeDashboard,
 } from "../context/SiteInChargeDashboardContext";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
+import { isDelayed } from "../utils/dateUtils";
 
 const DevicesContent = () => {
   const {
@@ -49,6 +50,7 @@ const DevicesContent = () => {
     status: searchParams.get("status") || "",
     type: searchParams.get("type") || "",
     subtype: searchParams.get("subtype") || "",
+    priority: searchParams.get("priority") || "",
     siteSupervisor: searchParams.get("siteSupervisor") || "",
     clusterSupervisor: searchParams.get("clusterSupervisor") || "",
   };
@@ -70,6 +72,7 @@ const DevicesContent = () => {
     filters.status,
     filters.type,
     filters.subtype,
+    filters.priority,
   ]);
 
   // Get all site supervisors and cluster supervisors for dropdowns
@@ -97,13 +100,21 @@ const DevicesContent = () => {
       if (!device.jobs || device.jobs.length === 0)
         return filters.status === "IN_PROGRESS";
       const statuses = device.jobs.map((j) => j.status);
+
+      // Check if device is delayed
+      const deviceIsDelayed = isDelayed(device.targetDate, statuses);
+
       if (filters.status === "COMPLETED") {
         return statuses.every((s) => s === "COMPLETED");
       } else if (filters.status === "CONSTRAINT") {
         return statuses.includes("CONSTRAINT");
+      } else if (filters.status === "DELAYED") {
+        return deviceIsDelayed;
       } else if (filters.status === "IN_PROGRESS") {
         return (
-          statuses.includes("IN_PROGRESS") && !statuses.includes("CONSTRAINT")
+          statuses.includes("IN_PROGRESS") &&
+          !statuses.includes("CONSTRAINT") &&
+          !deviceIsDelayed
         );
       }
       return true;
@@ -114,6 +125,11 @@ const DevicesContent = () => {
   }
   if (filters.subtype) {
     filtered = filtered.filter((device) => device.subtype === filters.subtype);
+  }
+  if (filters.priority) {
+    filtered = filtered.filter(
+      (device) => device.priority === filters.priority
+    );
   }
 
   // Device add/edit/delete handlers

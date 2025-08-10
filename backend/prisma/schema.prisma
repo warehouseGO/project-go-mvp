@@ -40,6 +40,13 @@ enum ResourceStatus {
   FREE
 }
 
+enum DevicePriority {
+  LOW
+  MEDIUM
+  HIGH
+  EXTREME
+}
+
 // Main Models
 model User {
   id           Int        @id @default(autoincrement())
@@ -62,6 +69,7 @@ model User {
   assignedDevices   Device[]  @relation("DeviceAssignee")
   createdDevices    Device[]  @relation("DeviceCreator")
   siteSupervisorDevices Device[] @relation("DeviceSiteSupervisor")
+  updatedJobs       Job[]     @relation("JobUpdater")
 
   @@map("users")
 }
@@ -93,6 +101,8 @@ model Device {
   siteSupervisorId Int? @map("site_supervisor_id") // Site Supervisor ID (new)
   assignedTo   Int?     @map("assigned_to") // Cluster Supervisor ID
   createdBy    Int      @map("created_by")  // Site In-Charge ID
+  priority     DevicePriority @default(MEDIUM)
+  targetDate   DateTime? @map("target_date") // Target completion date
   attributes   Json?    // Flexible key-value pairs for device specs
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -109,6 +119,8 @@ model Device {
   @@index([siteSupervisorId])
   @@index([assignedTo])
   @@index([serialNumber])
+  @@index([priority])
+  @@index([targetDate])
 }
 
 model Job {
@@ -123,7 +135,7 @@ model Job {
 
   // Relations
   device  Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  
+  updater User?  @relation("JobUpdater", fields: [updatedBy], references: [id])
 
   @@map("jobs")
 }

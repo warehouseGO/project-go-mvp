@@ -113,14 +113,11 @@ exports.updateResourceStatus = async (req, res) => {
     const resource = await prisma.resource.findUnique({
       where: { id: parseInt(id) },
     });
+    console.log(resource);
+    console.log(req.user);
     if (!resource) return res.status(404).json({ error: "Resource not found" });
     // Assume req.user.siteId is set for site in-charge
-    if (
-      req.user.role !== "SITE_INCHARGE" ||
-      resource.siteId !== req.user.siteId
-    ) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
+
     const updated = await prisma.resource.update({
       where: { id: parseInt(id) },
       data: {

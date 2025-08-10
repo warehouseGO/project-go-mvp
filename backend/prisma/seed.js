@@ -1,4 +1,10 @@
-const { PrismaClient, Role, UserStatus, JobStatus } = require("@prisma/client");
+const {
+  PrismaClient,
+  Role,
+  UserStatus,
+  JobStatus,
+  DevicePriority,
+} = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 
 const prisma = new PrismaClient();
@@ -206,6 +212,18 @@ async function main() {
           subtype: subtype.name,
           siteId: site1.id,
           createdBy: siteInCharge1.id,
+          priority:
+            deviceCount % 4 === 0
+              ? DevicePriority.EXTREME
+              : deviceCount % 3 === 0
+              ? DevicePriority.HIGH
+              : deviceCount % 2 === 0
+              ? DevicePriority.MEDIUM
+              : DevicePriority.LOW,
+          targetDate:
+            deviceCount % 3 === 0
+              ? new Date(Date.now() + deviceCount * 24 * 60 * 60 * 1000)
+              : null, // Some devices have target dates
           attributes: {
             no_of_tubes: 100 + i,
             exchanger_length: `${5 + i * 0.1} m`,
@@ -216,12 +234,24 @@ async function main() {
           },
         },
       });
+      // Create jobs with some constraints
+      const jobsData = jobNames.map((name, index) => ({
+        deviceId: device.id,
+        name,
+        status:
+          index === 0 && deviceCount % 5 === 0
+            ? JobStatus.CONSTRAINT
+            : JobStatus.IN_PROGRESS,
+        comment:
+          index === 0 && deviceCount % 5 === 0
+            ? "Equipment malfunction - waiting for replacement parts"
+            : null,
+        updatedBy:
+          index === 0 && deviceCount % 5 === 0 ? clusterSupervisor1.id : null,
+      }));
+
       await prisma.job.createMany({
-        data: jobNames.map((name) => ({
-          deviceId: device.id,
-          name,
-          status: JobStatus.IN_PROGRESS,
-        })),
+        data: jobsData,
       });
       deviceCount++;
     }
@@ -252,6 +282,16 @@ async function main() {
         subtype: null,
         siteId: site1.id,
         createdBy: siteInCharge1.id,
+        priority:
+          i % 4 === 0
+            ? DevicePriority.EXTREME
+            : i % 3 === 0
+            ? DevicePriority.HIGH
+            : i % 2 === 0
+            ? DevicePriority.MEDIUM
+            : DevicePriority.LOW,
+        targetDate:
+          i % 4 === 0 ? new Date(Date.now() - i * 24 * 60 * 60 * 1000) : null, // Some vessels are delayed
         attributes: {
           diameter: `${2 + i * 0.1} m`,
           height: `${5 + i * 0.2} m`,
@@ -261,12 +301,23 @@ async function main() {
         },
       },
     });
+    // Create jobs with some constraints
+    const vesselJobsData = vesselJobNames.map((name, index) => ({
+      deviceId: device.id,
+      name,
+      status:
+        index === 2 && i % 7 === 0
+          ? JobStatus.CONSTRAINT
+          : JobStatus.IN_PROGRESS,
+      comment:
+        index === 2 && i % 7 === 0
+          ? "Safety inspection required - access restricted"
+          : null,
+      updatedBy: index === 2 && i % 7 === 0 ? clusterSupervisor2.id : null,
+    }));
+
     await prisma.job.createMany({
-      data: vesselJobNames.map((name) => ({
-        deviceId: device.id,
-        name,
-        status: JobStatus.IN_PROGRESS,
-      })),
+      data: vesselJobsData,
     });
   }
 
@@ -297,6 +348,18 @@ async function main() {
         subtype: null,
         siteId: site1.id,
         createdBy: siteInCharge1.id,
+        priority:
+          i % 4 === 0
+            ? DevicePriority.EXTREME
+            : i % 3 === 0
+            ? DevicePriority.HIGH
+            : i % 2 === 0
+            ? DevicePriority.MEDIUM
+            : DevicePriority.LOW,
+        targetDate:
+          i % 5 === 0
+            ? new Date(Date.now() + i * 2 * 24 * 60 * 60 * 1000)
+            : null, // Some columns have future target dates
         attributes: {
           no_of_trays: 10 + i,
           height: `${20 + i * 0.5} m`,
@@ -306,12 +369,23 @@ async function main() {
         },
       },
     });
+    // Create jobs with some constraints
+    const columnJobsData = columnJobNames.map((name, index) => ({
+      deviceId: device.id,
+      name,
+      status:
+        index === 5 && i % 6 === 0
+          ? JobStatus.CONSTRAINT
+          : JobStatus.IN_PROGRESS,
+      comment:
+        index === 5 && i % 6 === 0
+          ? "Material shortage - waiting for delivery"
+          : null,
+      updatedBy: index === 5 && i % 6 === 0 ? clusterSupervisor3.id : null,
+    }));
+
     await prisma.job.createMany({
-      data: columnJobNames.map((name) => ({
-        deviceId: device.id,
-        name,
-        status: JobStatus.IN_PROGRESS,
-      })),
+      data: columnJobsData,
     });
   }
 

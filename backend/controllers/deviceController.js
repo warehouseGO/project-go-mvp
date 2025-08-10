@@ -32,6 +32,8 @@ exports.createDevice = async (req, res) => {
       attributes,
       siteSupervisorId,
       assignedTo, // cluster supervisor
+      priority = "MEDIUM", // default priority
+      targetDate, // target completion date
       jobs = [], // array of { name, status, comment }
     } = req.body;
     const { userId } = req.user; // Assume JWT payload includes userId
@@ -45,6 +47,8 @@ exports.createDevice = async (req, res) => {
         siteId: parseInt(siteId),
         createdBy: userId,
         attributes,
+        priority,
+        targetDate: targetDate ? new Date(targetDate) : null,
         siteSupervisorId: siteSupervisorId ? parseInt(siteSupervisorId) : null,
         assignedTo: assignedTo ? parseInt(assignedTo) : null,
         jobs: {
@@ -89,6 +93,8 @@ exports.updateDevice = async (req, res) => {
       attributes,
       siteSupervisorId,
       assignedTo,
+      priority,
+      targetDate,
       jobs = [],
     } = req.body;
 
@@ -102,6 +108,8 @@ exports.updateDevice = async (req, res) => {
           type,
           subtype,
           attributes,
+          priority,
+          targetDate: targetDate ? new Date(targetDate) : null,
           siteSupervisorId: siteSupervisorId
             ? parseInt(siteSupervisorId)
             : undefined,
