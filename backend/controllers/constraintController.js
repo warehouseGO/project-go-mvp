@@ -28,7 +28,7 @@ exports.getSiteConstraintReport = async (req, res) => {
       return res.status(404).json({ error: "Site not found" });
     }
 
-    // Get all devices with constraint jobs for this site
+    // Optimized query with better filtering and selective fields
     const devicesWithConstraints = await prisma.device.findMany({
       where: {
         siteId: parseInt(siteId),
@@ -38,12 +38,22 @@ exports.getSiteConstraintReport = async (req, res) => {
           },
         },
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        serialNumber: true,
+        type: true,
+        priority: true,
+        targetDate: true,
         jobs: {
           where: {
             status: JobStatus.CONSTRAINT,
           },
-          include: {
+          select: {
+            id: true,
+            name: true,
+            comment: true,
+            updatedAt: true,
             updater: {
               select: {
                 id: true,
@@ -80,7 +90,6 @@ exports.getSiteConstraintReport = async (req, res) => {
         deviceName: device.name,
         serialNumber: device.serialNumber,
         type: device.type,
-        subtype: device.subtype,
         priority: device.priority,
         targetDate: device.targetDate,
         constraints: device.jobs.map((job) => ({
@@ -117,9 +126,11 @@ exports.getAllSitesConstraintReport = async (req, res) => {
         .json({ error: "Only owners can view all sites constraint report" });
     }
 
-    // Get all sites with their constraint data
+    // Optimized query for all sites constraint data
     const sitesWithConstraints = await prisma.site.findMany({
-      include: {
+      select: {
+        id: true,
+        name: true,
         devices: {
           where: {
             jobs: {
@@ -128,12 +139,22 @@ exports.getAllSitesConstraintReport = async (req, res) => {
               },
             },
           },
-          include: {
+          select: {
+            id: true,
+            name: true,
+            serialNumber: true,
+            type: true,
+            priority: true,
+            targetDate: true,
             jobs: {
               where: {
                 status: JobStatus.CONSTRAINT,
               },
-              include: {
+              select: {
+                id: true,
+                name: true,
+                comment: true,
+                updatedAt: true,
                 updater: {
                   select: {
                     id: true,
@@ -196,7 +217,6 @@ exports.getAllSitesConstraintReport = async (req, res) => {
             deviceName: device.name,
             serialNumber: device.serialNumber,
             type: device.type,
-            subtype: device.subtype,
             priority: device.priority,
             targetDate: device.targetDate,
             constraints: device.jobs.map((job) => ({

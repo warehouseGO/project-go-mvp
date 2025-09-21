@@ -4,10 +4,11 @@ import { useAuth } from "../../context/AuthContext";
 import { ROLES } from "../../utils/constants";
 
 const Sidebar = () => {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const location = useLocation();
   const matchSiteDetails = useMatch("/sites/:siteId");
   const matchSiteAnalytics = useMatch("/sites/:siteId/analytics");
+  const matchPreSDJobs = useMatch("/sites/:siteId/presd-jobs");
 
   const navigation = [
     {
@@ -68,6 +69,34 @@ const Sidebar = () => {
               } group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200`}
             >
               Resources
+            </Link>
+          )}
+
+          {/* PreSD Jobs (Site In-Charge only) */}
+          {hasRole(ROLES.SITE_INCHARGE) && user?.siteId && (
+            <Link
+              to={`/sites/${user.siteId}/presd-jobs`}
+              className={`${
+                matchPreSDJobs
+                  ? "bg-primary-100 text-primary-700 border-r-2 border-primary-500"
+                  : "text-gray-700 hover:bg-gray-100"
+              } group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200`}
+            >
+              PreSD Jobs
+            </Link>
+          )}
+
+          {/* Manpower (Site In-Charge only) */}
+          {hasRole(ROLES.SITE_INCHARGE) && user?.siteId && (
+            <Link
+              to={`/sites/${user.siteId}/manpower`}
+              className={`${
+                location.pathname.includes("/manpower")
+                  ? "bg-primary-100 text-primary-700 border-r-2 border-primary-500"
+                  : "text-gray-700 hover:bg-gray-100"
+              } group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200`}
+            >
+              Manpower
             </Link>
           )}
         </div>

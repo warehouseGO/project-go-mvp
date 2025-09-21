@@ -41,8 +41,14 @@ const DeviceTable = ({
   const [assignError, setAssignError] = useState("");
 
   const getDeviceStatus = (device) => {
+    // Use the device status field directly from the database
+    if (device.status) {
+      return device.status;
+    }
+
+    // Fallback to old logic if status field is not available
     if (!device.jobs || device.jobs.length === 0) {
-      return "IN_PROGRESS";
+      return "PENDING";
     }
 
     const statuses = device.jobs.map((j) => j.status);
@@ -66,7 +72,7 @@ const DeviceTable = ({
     if (statuses.includes(JOB_STATUS.IN_PROGRESS)) {
       return JOB_STATUS.IN_PROGRESS;
     }
-    return "IN_PROGRESS";
+    return "PENDING";
   };
 
   const renderDefaultJobTable = (device) => (
@@ -117,7 +123,6 @@ const DeviceTable = ({
     headers.push({ key: "serialNumber", label: "Serial No" });
     headers.push({ key: "name", label: "Name" });
     headers.push({ key: "type", label: "Type" });
-    headers.push({ key: "subtype", label: "Subtype" });
     headers.push({ key: "priority", label: "Priority" });
     headers.push({ key: "targetDate", label: "Target Date" });
     if (showAssignedTo) {
@@ -130,7 +135,7 @@ const DeviceTable = ({
   };
 
   const getColSpan = () => {
-    let span = 6; // serial, name, type, subtype, priority, targetDate
+    let span = 5; // serial, name, type, priority, targetDate
     if (showAssignedTo) span += 1;
     span += 3; // status, attributes, jobs
     if (enableMultiSelect) span += 1;
@@ -232,9 +237,7 @@ const DeviceTable = ({
                 <td className="px-4 py-3 text-sm text-gray-900">
                   {device.type}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-900">
-                  {device.subtype}
-                </td>
+
                 <td className="px-4 py-3">
                   <PriorityBadge priority={device.priority} />
                 </td>

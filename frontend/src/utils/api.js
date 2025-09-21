@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
-// const API_BASE_URL = "http://localhost:3000/api";
+// const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
+const API_BASE_URL = "http://localhost:3000/api";
 console.log(import.meta.env.VITE_API_URL);
 // Create axios instance with base configuration
 const api = axios.create({
@@ -91,6 +91,7 @@ export const devicesAPI = {
       deviceIds,
       siteSupervisorId,
     }),
+  bulkCreateDevices: (data) => api.post("/devices/bulk-create", data),
 };
 
 // Jobs API calls
@@ -104,8 +105,12 @@ export const jobsAPI = {
 // Dashboard API calls
 export const dashboardAPI = {
   ownerDashboard: () => api.get("/dashboard/owner"),
-  siteInChargeDashboard: (siteId) =>
-    api.get(`/dashboard/site-incharge/${siteId}`),
+  siteInChargeDashboard: (siteId, queryParams = "") =>
+    api.get(
+      `/dashboard/site-incharge/${siteId}${
+        queryParams ? `?${queryParams}` : ""
+      }`
+    ),
   siteSupervisorDashboard: () => api.get("/dashboard/site-supervisor"),
   clusterSupervisorDashboard: () => api.get("/dashboard/cluster-supervisor"),
   fullAssignSite: (data) => api.post("/sites/full-assign", data),

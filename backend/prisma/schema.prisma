@@ -30,6 +30,7 @@ enum Role {
 
 enum JobStatus {
   COMPLETED
+  PENDING
   IN_PROGRESS
   CONSTRAINT
 }
@@ -45,6 +46,13 @@ enum DevicePriority {
   MEDIUM
   HIGH
   EXTREME
+}
+
+enum DeviceStatus {
+  COMPLETED
+  CONSTRAINT
+  IN_PROGRESS
+  PENDING
 }
 
 // Main Models
@@ -70,8 +78,18 @@ model User {
   createdDevices    Device[]  @relation("DeviceCreator")
   siteSupervisorDevices Device[] @relation("DeviceSiteSupervisor")
   updatedJobs       Job[]     @relation("JobUpdater")
+  createdPreSDJobs  PreSDJob[] @relation("PreSDJobCreator")
+  updatedPreSDJobs  PreSDJob[] @relation("PreSDJobUpdater")
+  createdManpower   Manpower[] @relation("ManpowerCreator")
+  updatedManpower   Manpower[] @relation("ManpowerUpdater")
 
   @@map("users")
+  @@index([role]) // Index for role-based queries
+  @@index([status]) // Index for status filtering
+  @@index([siteId]) // Index for site-based queries
+  @@index([superiorId]) // Index for hierarchy queries
+  @@index([role, siteId]) // Composite index for role and site filtering
+  @@index([status, superiorId]) // Composite index for pending user queries
 }
 
 model Site {
@@ -87,6 +105,8 @@ model Site {
   users     User[]
   devices   Device[]
   resources Resource[]
+  preSDJobs PreSDJob[]
+  manpower  Manpower[]
 
   @@map("sites")
 }
@@ -96,12 +116,12 @@ model Device {
   serialNumber String   @unique @map("serial_number")
   name         String
   type         String   // "Heat Exchanger", "Pump", etc.
-  subtype      String?  // "Floating", "Fixed", etc.
   siteId       Int      @map("site_id")
   siteSupervisorId Int? @map("site_supervisor_id") // Site Supervisor ID (new)
   assignedTo   Int?     @map("assigned_to") // Cluster Supervisor ID
   createdBy    Int      @map("created_by")  // Site In-Charge ID
   priority     DevicePriority @default(MEDIUM)
+  status       DeviceStatus @default(PENDING) // Device status based on job statuses
   targetDate   DateTime? @map("target_date") // Target completion date
   attributes   Json?    // Flexible key-value pairs for device specs
   createdAt    DateTime @default(now()) @map("created_at")
@@ -120,24 +140,39 @@ model Device {
   @@index([assignedTo])
   @@index([serialNumber])
   @@index([priority])
+  @@index([status]) // Index for device status filtering
   @@index([targetDate])
+  @@index([siteId, type]) // Composite index for efficient unique device types by site queries
+  @@index([type]) // Index for device type queries across all sites
+  @@index([createdBy]) // Index for createdBy queries
+  @@index([siteId, priority]) // Composite index for priority filtering by site
+  @@index([siteId, siteSupervisorId]) // Composite index for supervisor device queries
+  @@index([siteId, status]) // Composite index for site status filtering
 }
 
 model Job {
-  id        Int       @id @default(autoincrement())
-  deviceId  Int       @map("device_id")
-  name      String
-  status    JobStatus @default(IN_PROGRESS)
-  comment   String?   // Required when status is 'CONSTRAINT'
-  updatedBy Int?      @map("updated_by") // Last person who updated status
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  id         Int       @id @default(autoincrement())
+  deviceId   Int       @map("device_id")
+  deviceType String?   @map("device_type") // Type of device this job belongs to - auto-populated by trigger
+  name       String
+  status     JobStatus @default(PENDING)
+  comment    String?   // Required when status is 'CONSTRAINT'
+  updatedBy  Int?      @map("updated_by") // Last person who updated status
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
   // Relations
   device  Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   updater User?  @relation("JobUpdater", fields: [updatedBy], references: [id])
 
   @@map("jobs")
+  @@index([deviceId])
+  @@index([deviceType]) // Index for device type filtering
+  @@index([deviceType, status]) // Composite index for device type and status queries
+  @@index([updatedBy])
+  @@index([status]) // Index for status filtering
+  @@index([deviceId, status]) // Composite index for device constraint queries
+  @@index([status, updatedAt]) // Composite index for constraint report ordering
 }
 
 model Resource {
@@ -154,4 +189,57 @@ model Resource {
   updatedAt    DateTime       @updatedAt
 
   site         Site?          @relation(fields: [siteId], references: [id])
+}
+
+model PreSDJob {
+  id              Int       @id @default(autoincrement())
+  jobDescription  String    @map("job_description")
+  status          JobStatus @default(IN_PROGRESS)
+  completedDate   DateTime? @map("completed_date")
+  priority        DevicePriority @default(MEDIUM)
+  remarks         String?
+  siteId          Int       @map("site_id")
+  createdBy       Int       @map("created_by")
+  updatedBy       Int?      @map("updated_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  site      Site  @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  creator   User  @relation("PreSDJobCreator", fields: [createdBy], references: [id])
+  updater   User? @relation("PreSDJobUpdater", fields: [updatedBy], references: [id])
+
+  @@map("presd_jobs")
+  @@index([siteId])
+  @@index([status])
+  @@index([priority])
+  @@index([createdBy])
+  @@index([updatedBy])
+  @@index([siteId, status]) // Composite index for site status filtering
+  @@index([siteId, priority]) // Composite index for site priority filtering
+  @@index([status, completedDate]) // Composite index for completion tracking
+}
+
+model Manpower {
+  id          Int      @id @default(autoincrement())
+  siteId      Int      @map("site_id")
+  designation String
+  date        DateTime @db.Date
+  dayshift    Int      @default(0)
+  nightshift  Int      @default(0)
+  createdBy   Int      @map("created_by")
+  updatedBy   Int?     @map("updated_by")
+
+  // Relations
+  site    Site  @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  creator User  @relation("ManpowerCreator", fields: [createdBy], references: [id])
+  updater User? @relation("ManpowerUpdater", fields: [updatedBy], references: [id])
+
+  @@map("manpower")
+  @@index([siteId, date]) // Composite index for site-specific daily queries
+  @@index([date]) // Index for date-based queries across sites
+  @@index([designation]) // Index for designation-based filtering
+  @@index([siteId, designation]) // Composite index for site + designation queries
+  @@index([createdBy]) // Index for user-specific queries
+  @@unique([siteId, designation, date]) // Prevent duplicate entries for same designation on same date
 }

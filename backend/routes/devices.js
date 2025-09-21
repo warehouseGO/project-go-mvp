@@ -76,4 +76,20 @@ router.delete(
   deviceController.deleteJob
 );
 
+// Bulk create devices from Excel import
+router.post(
+  "/bulk-create",
+  auth,
+  authorize("SITE_INCHARGE"),
+  deviceController.bulkCreateDevices
+);
+
+// Get unique device types for a specific site
+router.get(
+  "/types/:siteId",
+  auth,
+  authorize(["SITE_INCHARGE", "SITE_SUPERVISOR", "CLUSTER_SUPERVISOR"]),
+  deviceController.getDeviceTypesBySite
+);
+
 module.exports = router;

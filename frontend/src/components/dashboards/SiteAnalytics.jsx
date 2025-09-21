@@ -1,14 +1,30 @@
-import React, { useMemo, useState } from "react";
-import { Doughnut } from "react-chartjs-2";
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
-import { DEVICE_TYPES, DEVICE_SUBTYPES } from "../../utils/constants";
+import React, { useMemo, useState, useEffect } from "react";
+import { Bar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
 import { useNavigate } from "react-router-dom";
-ChartJS.register(ArcElement, Tooltip, Legend);
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const statusColors = {
   COMPLETED: "bg-green-100 text-green-800 border-green-300",
   IN_PROGRESS: "bg-blue-100 text-blue-800 border-blue-300",
   CONSTRAINT: "bg-red-100 text-red-800 border-red-300",
+  PENDING: "bg-yellow-100 text-yellow-800 border-yellow-300",
   TOTAL: "bg-primary-100 text-primary-800 border-primary-300",
 };
 
@@ -16,179 +32,209 @@ const statusLabels = {
   COMPLETED: "Completed",
   IN_PROGRESS: "In Progress",
   CONSTRAINT: "Constraint",
+  PENDING: "Pending",
   TOTAL: "Total Devices",
+};
+
+const chartColors = {
+  COMPLETED: "#10B981",
+  IN_PROGRESS: "#3B82F6",
+  CONSTRAINT: "#EF4444",
+  PENDING: "#F59E0B",
 };
 
 const SiteAnalytics = ({
   siteData,
   goToDevicesWithFilters,
   deviceTypes,
-  deviceSubtypes,
+  statusCounts = [],
 }) => {
   const navigate = useNavigate();
-  const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
 
-  // Filtered devices
+  // Filtered devices (only by type, no status filter)
   const filteredDevices = useMemo(() => {
     let devices = siteData.devices;
-    if (statusFilter) {
-      devices = devices.filter((d) => {
-        const statuses = d.jobs.map((j) => j.status);
-        if (statusFilter === "COMPLETED") {
-          return (
-            statuses.length > 0 && statuses.every((s) => s === "COMPLETED")
-          );
-        }
-        if (statusFilter === "CONSTRAINT") {
-          return statuses.includes("CONSTRAINT");
-        }
-        if (statusFilter === "IN_PROGRESS") {
-          return statuses.includes("IN_PROGRESS");
-        }
-        return true;
-      });
-    }
     if (typeFilter) {
       devices = devices.filter((d) => d.type === typeFilter);
     }
     return devices;
-  }, [siteData.devices, statusFilter, typeFilter]);
+  }, [siteData.devices, typeFilter]);
+
+  // Calculate device type status breakdown from devices data
+  const deviceTypeStatusBreakdown = useMemo(() => {
+    const breakdown = {};
+    siteData.devices.forEach((device) => {
+      if (!breakdown[device.type]) {
+        breakdown[device.type] = {
+          COMPLETED: 0,
+          IN_PROGRESS: 0,
+          CONSTRAINT: 0,
+          PENDING: 0,
+        };
+      }
+      breakdown[device.type][device.status] =
+        (breakdown[device.type][device.status] || 0) + 1;
+    });
+    return breakdown;
+  }, [siteData.devices]);
+
+  // Calculate job status breakdown for selected device type
+  const jobStatusBreakdown = useMemo(() => {
+    if (!typeFilter) return {};
+
+    const breakdown = {};
+    const filteredDevicesForType = siteData.devices.filter(
+      (d) => d.type === typeFilter
+    );
+
+    filteredDevicesForType.forEach((device) => {
+      device.jobs?.forEach((job) => {
+        if (!breakdown[job.name]) {
+          breakdown[job.name] = {
+            COMPLETED: 0,
+            IN_PROGRESS: 0,
+            CONSTRAINT: 0,
+            PENDING: 0,
+          };
+        }
+        breakdown[job.name][job.status] =
+          (breakdown[job.name][job.status] || 0) + 1;
+      });
+    });
+
+    return breakdown;
+  }, [siteData.devices, typeFilter]);
 
   // Quick stats (use filteredDevices for all)
   const totalDevices = filteredDevices.length;
-  const completedDevices = filteredDevices.filter((d) => {
-    const statuses = d.jobs.map((j) => j.status);
-    return statuses.length > 0 && statuses.every((s) => s === "COMPLETED");
-  }).length;
-  const constraintDevices = filteredDevices.filter((d) => {
-    const statuses = d.jobs.map((j) => j.status);
-    return statuses.includes("CONSTRAINT");
-  }).length;
-  const inProgressDevices = filteredDevices.filter((d) => {
-    const statuses = d.jobs.map((j) => j.status);
-    return (
-      statuses.includes("IN_PROGRESS") &&
-      !statuses.includes("CONSTRAINT") &&
-      !statuses.every((s) => s === "COMPLETED")
-    );
-  }).length;
+  const completedDevices = filteredDevices.filter(
+    (d) => d.status === "COMPLETED"
+  ).length;
+  const constraintDevices = filteredDevices.filter(
+    (d) => d.status === "CONSTRAINT"
+  ).length;
+  const inProgressDevices = filteredDevices.filter(
+    (d) => d.status === "IN_PROGRESS"
+  ).length;
+  const pendingDevices = filteredDevices.filter(
+    (d) => d.status === "PENDING"
+  ).length;
 
-  // Device type/subtype distribution (filtered)
-  const getChartData = () => {
-    if (typeFilter) {
-      // Show subtypes of the selected type
-      const subtypeCounts = deviceSubtypes.map(
-        (subtype) => filteredDevices.filter((d) => d.subtype === subtype).length
-      );
-      return {
-        labels: deviceSubtypes,
-        datasets: [
-          {
-            data: subtypeCounts,
-            backgroundColor: ["#3B82F6", "#10B981", "#F59E42", "#6366F1"],
-            borderWidth: 1,
-          },
-        ],
-      };
-    } else {
-      // Show device types
-      const deviceTypeCounts = deviceTypes.map(
-        (type) => filteredDevices.filter((d) => d.type === type).length
-      );
-      return {
-        labels: deviceTypes,
-        datasets: [
-          {
-            data: deviceTypeCounts,
-            backgroundColor: [
-              "#3B82F6",
-              "#10B981",
-              "#F59E42",
-              "#6366F1",
-              "#F43F5E",
-              "#FBBF24",
-            ],
-            borderWidth: 1,
-          },
-        ],
-      };
-    }
+  // Device type status breakdown for bar chart
+  const getDeviceTypeChartData = () => {
+    const chartData = {
+      labels: deviceTypes,
+      datasets: [
+        {
+          label: "Completed",
+          data: deviceTypes.map(
+            (type) => deviceTypeStatusBreakdown[type]?.COMPLETED || 0
+          ),
+          backgroundColor: chartColors.COMPLETED,
+        },
+        {
+          label: "In Progress",
+          data: deviceTypes.map(
+            (type) => deviceTypeStatusBreakdown[type]?.IN_PROGRESS || 0
+          ),
+          backgroundColor: chartColors.IN_PROGRESS,
+        },
+        {
+          label: "Constraint",
+          data: deviceTypes.map(
+            (type) => deviceTypeStatusBreakdown[type]?.CONSTRAINT || 0
+          ),
+          backgroundColor: chartColors.CONSTRAINT,
+        },
+        {
+          label: "Pending",
+          data: deviceTypes.map(
+            (type) => deviceTypeStatusBreakdown[type]?.PENDING || 0
+          ),
+          backgroundColor: chartColors.PENDING,
+        },
+      ],
+    };
+    return chartData;
   };
 
-  const deviceTypeData = getChartData();
+  const deviceTypeChartData = getDeviceTypeChartData();
 
-  // Supervisor analytics table (use filteredDevices for all calculations)
-  const supervisors = siteData.users.filter(
-    (u) => u.role === "SITE_SUPERVISOR" || u.role === "CLUSTER_SUPERVISOR"
-  );
-  const supervisorRows = supervisors.map((sup) => {
-    const assignedDevices = filteredDevices.filter((d) =>
-      sup.role === "SITE_SUPERVISOR"
-        ? d.siteSupervisorId === sup.id
-        : d.assignedTo === sup.id
-    );
-    const completed = assignedDevices.filter((d) => {
-      const statuses = d.jobs.map((j) => j.status);
-      return statuses.length > 0 && statuses.every((s) => s === "COMPLETED");
-    }).length;
-    const constraint = assignedDevices.filter((d) => {
-      const statuses = d.jobs.map((j) => j.status);
-      return statuses.includes("CONSTRAINT");
-    }).length;
-    return {
-      id: sup.id,
-      name: sup.name,
-      role: sup.role.replace("_", " ").replace("SUPERVISOR", "Supervisor"),
-      total: assignedDevices.length,
-      completed,
-      constraint,
-    };
-  });
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: "top",
+      },
+      title: {
+        display: true,
+        text: "Device Type Status Distribution",
+      },
+      tooltip: {
+        callbacks: {
+          afterLabel: function (context) {
+            const statusMap = {
+              0: "Completed",
+              1: "In Progress",
+              2: "Constraint",
+              3: "Pending",
+            };
+            const status = statusMap[context.datasetIndex];
+            return `Click to view ${status.toLowerCase()} devices`;
+          },
+        },
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          stepSize: 1,
+        },
+      },
+    },
+    onHover: (event, elements) => {
+      event.native.target.style.cursor =
+        elements.length > 0 ? "pointer" : "default";
+    },
+    onClick: (event, elements) => {
+      if (elements.length > 0) {
+        const clickedElement = elements[0];
+        const clickedIndex = clickedElement.index;
+        const datasetIndex = clickedElement.datasetIndex;
+        const selectedType = deviceTypes[clickedIndex];
+
+        // Get the status from the dataset index
+        const statusMap = {
+          0: "COMPLETED",
+          1: "IN_PROGRESS",
+          2: "CONSTRAINT",
+          3: "PENDING",
+        };
+        const selectedStatus = statusMap[datasetIndex];
+
+        // Navigate to devices table with both device type and status filters
+        goToDevicesWithFilters({
+          type: selectedType,
+          status: selectedStatus,
+        });
+      }
+    },
+  };
 
   return (
-    <div className="mb-8">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-6 items-end">
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">
-            Device Status
-          </label>
-          <select
-            className="input-field"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">All</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="CONSTRAINT">Constraint</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">
-            Device Type
-          </label>
-          <select
-            className="input-field"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-          >
-            <option value="">All</option>
-            {deviceTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      {/* Quick Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div className="space-y-6">
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div
           className={`card border ${statusColors.TOTAL}`}
           style={{ cursor: goToDevicesWithFilters ? "pointer" : undefined }}
-          onClick={() => goToDevicesWithFilters({})}
+          onClick={() =>
+            goToDevicesWithFilters({
+              type: typeFilter,
+            })
+          }
         >
           <div className="text-3xl font-bold">{totalDevices}</div>
           <div className="text-sm font-medium mt-1">Total Devices</div>
@@ -197,7 +243,10 @@ const SiteAnalytics = ({
           className={`card border ${statusColors.COMPLETED}`}
           style={{ cursor: goToDevicesWithFilters ? "pointer" : undefined }}
           onClick={() =>
-            goToDevicesWithFilters({ status: "COMPLETED", type: typeFilter })
+            goToDevicesWithFilters({
+              status: "COMPLETED",
+              type: typeFilter,
+            })
           }
         >
           <div className="text-3xl font-bold">{completedDevices}</div>
@@ -229,118 +278,163 @@ const SiteAnalytics = ({
           <div className="text-3xl font-bold">{constraintDevices}</div>
           <div className="text-sm font-medium mt-1">Constraint</div>
         </div>
+        <div
+          className={`card border ${statusColors.PENDING}`}
+          style={{ cursor: goToDevicesWithFilters ? "pointer" : undefined }}
+          onClick={() =>
+            goToDevicesWithFilters({
+              status: "PENDING",
+              type: typeFilter,
+            })
+          }
+        >
+          <div className="text-3xl font-bold">{pendingDevices}</div>
+          <div className="text-sm font-medium mt-1">Pending</div>
+        </div>
       </div>
-      {/* Device Type/Subtype Pie Chart */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center">
+
+      {/* Filters */}
+      <div className="flex gap-4 items-end">
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Device Type Filter
+          </label>
+          <select
+            className="input-field"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+          >
+            <option value="">All Types</option>
+            {deviceTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </div>
+        {typeFilter && (
+          <button
+            onClick={() => setTypeFilter("")}
+            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+          >
+            Clear Filter
+          </button>
+        )}
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 gap-6">
+        {/* Device Type Status Distribution */}
+        <div className="card">
           <h3 className="text-lg font-semibold mb-4">
-            {typeFilter
-              ? `${typeFilter} Subtype Distribution`
-              : "Device Type Distribution"}
+            Device Type Status Distribution
+            <span className="text-sm text-gray-500 font-normal ml-2">
+              (Click on status bars to view filtered devices)
+            </span>
           </h3>
-          <Doughnut
-            data={deviceTypeData}
-            options={{
-              onClick: (evt, elements) => {
-                if (elements && elements.length > 0 && goToDevicesWithFilters) {
-                  const idx = elements[0].index;
-                  if (typeFilter) {
-                    // Clicking on subtype when type is filtered
-                    goToDevicesWithFilters({
-                      type: typeFilter,
-                      subtype: deviceSubtypes[idx],
-                      status: statusFilter,
-                    });
-                  } else {
-                    // Clicking on type when no type filter
-                    goToDevicesWithFilters({
-                      type: deviceTypes[idx],
-                      status: statusFilter,
-                    });
-                  }
-                }
-              },
-            }}
-          />
+          <div className="h-96 cursor-pointer">
+            <Bar data={deviceTypeChartData} options={chartOptions} />
+          </div>
         </div>
-        {/* Supervisor Analytics Table */}
-        <div className="bg-white rounded-lg shadow p-6 overflow-x-auto">
-          <h3 className="text-lg font-semibold mb-4">Supervisor Analytics</h3>
-          <table className="min-w-full text-sm border-separate border-spacing-0">
-            <thead className="sticky top-0 bg-white z-10">
-              <tr>
-                <th className="px-4 py-2 text-left border-b">Name</th>
-                <th className="px-4 py-2 text-left border-b">Role</th>
-                <th className="px-4 py-2 text-center border-b"># Devices</th>
-                <th className="px-4 py-2 text-center border-b">Completed</th>
-                <th className="px-4 py-2 text-center border-b">Constraint</th>
-              </tr>
-            </thead>
-            <tbody>
-              {supervisorRows.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-center text-gray-400 py-6">
-                    No supervisors found.
-                  </td>
-                </tr>
-              ) : (
-                supervisorRows.map((row, idx) => (
-                  <tr
-                    key={row.id}
-                    className={
-                      idx % 2 === 0
-                        ? "bg-gray-50 hover:bg-primary-50 transition"
-                        : "bg-white hover:bg-primary-50 transition"
-                    }
-                  >
-                    <td className="px-4 py-2 font-medium text-gray-900">
-                      <span
-                        style={{
-                          cursor: goToDevicesWithFilters
-                            ? "pointer"
-                            : undefined,
-                        }}
-                        onClick={() =>
-                          goToDevicesWithFilters(
-                            row.role.toUpperCase().includes("CLUSTER")
-                              ? {
-                                  clusterSupervisor: row.id,
-                                  type: typeFilter,
-                                  status: statusFilter,
-                                }
-                              : {
-                                  siteSupervisor: row.id,
-                                  type: typeFilter,
-                                  status: statusFilter,
-                                }
-                          )
-                        }
-                      >
-                        {row.name}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-gray-700">{row.role}</td>
-                    <td className="px-4 py-2 text-center">
-                      <span className="inline-block px-2 py-1 rounded-full bg-primary-100 text-primary-800 text-xs font-semibold">
-                        {row.total}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-center">
-                      <span className="inline-block px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-semibold">
-                        {row.completed}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-center">
-                      <span className="inline-block px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs font-semibold">
-                        {row.constraint}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+
+        {/* Job Status Breakdown Table (only when device type is selected) */}
+        {typeFilter && (
+          <div className="card">
+            <h3 className="text-lg font-semibold mb-4">
+              Job Status Breakdown for {typeFilter}
+            </h3>
+            {Object.keys(jobStatusBreakdown).length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Job Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Total
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Completed
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        In Progress
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Constraint
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Pending
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {Object.entries(jobStatusBreakdown)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([jobName, statusCounts]) => {
+                        const total = Object.values(statusCounts).reduce(
+                          (sum, count) => sum + count,
+                          0
+                        );
+                        return (
+                          <tr key={jobName} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {jobName}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                {total}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {statusCounts.COMPLETED > 0 ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  {statusCounts.COMPLETED}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">0</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {statusCounts.IN_PROGRESS > 0 ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  {statusCounts.IN_PROGRESS}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">0</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {statusCounts.CONSTRAINT > 0 ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  {statusCounts.CONSTRAINT}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">0</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {statusCounts.PENDING > 0 ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                  {statusCounts.PENDING}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">0</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>No jobs found for {typeFilter} devices.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -21,38 +21,84 @@ exports.ownerDashboard = async (req, res) => {
 exports.siteInChargeDashboard = async (req, res) => {
   try {
     const { siteId } = req.params;
+    const siteIdInt = parseInt(siteId);
+
+    // Get site basic info
     const site = await prisma.site.findUnique({
-      where: { id: parseInt(siteId) },
-      include: {
-        users: true,
-        devices: {
-          include: { jobs: true },
+      where: { id: siteIdInt },
+      select: {
+        id: true,
+        name: true,
+        location: true,
+        createdAt: true,
+        users: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            status: true,
+            phone: true,
+            superiorId: true,
+            createdAt: true,
+          },
         },
       },
     });
+
     if (!site) return res.status(404).json({ error: "Site not found" });
 
-    // Get unique device types and subtypes for this site
-    const deviceTypesRaw = await prisma.device.findMany({
-      where: { siteId: parseInt(siteId) },
+    // Always get all devices - frontend will handle filtering and pagination
+    const devices = await prisma.device.findMany({
+      where: { siteId: siteIdInt },
+      select: {
+        id: true,
+        serialNumber: true,
+        name: true,
+        type: true,
+        priority: true,
+        status: true,
+        targetDate: true,
+        siteSupervisorId: true,
+        assignedTo: true,
+        createdAt: true,
+        updatedAt: true,
+        attributes: true,
+        jobs: {
+          select: {
+            id: true,
+            name: true,
+            deviceType: true,
+            status: true,
+            comment: true,
+            updatedAt: true,
+            updatedBy: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Get unique device types for filtering
+    const deviceTypes = await prisma.device.findMany({
+      where: { siteId: siteIdInt },
       select: { type: true },
       distinct: ["type"],
+      orderBy: { type: "asc" },
     });
-    const deviceTypes = deviceTypesRaw.map((d) => d.type);
-    const deviceSubtypesRaw = await prisma.device.findMany({
-      where: { siteId: parseInt(siteId) },
-      select: { subtype: true },
-      distinct: ["subtype"],
+
+    // Get device status counts for analytics
+    const statusCounts = await prisma.device.groupBy({
+      by: ["status"],
+      where: { siteId: siteIdInt },
+      _count: { status: true },
     });
-    // Filter out null/empty subtypes
-    const deviceSubtypes = deviceSubtypesRaw
-      .map((d) => d.subtype)
-      .filter(Boolean);
 
     res.json({
       ...site,
-      deviceTypes,
-      deviceSubtypes,
+      devices,
+      deviceTypes: deviceTypes.map((dt) => dt.type),
+      statusCounts,
     });
   } catch (err) {
     console.error(err);

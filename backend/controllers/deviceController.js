@@ -4,17 +4,84 @@ const prisma = new PrismaClient();
 exports.getDevices = async (req, res) => {
   try {
     const { userId } = req.user;
+    const {
+      page = 1,
+      limit = 20,
+      search = "",
+      type = "",
+      priority = "",
+      status = "",
+    } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = Math.min(parseInt(limit), 100); // Cap at 100
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build where clause
     const where = { siteSupervisorId: parseInt(userId) };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { serialNumber: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    if (type) where.type = type;
+    if (priority) where.priority = priority;
+
+    // Add job status filtering if needed
+    if (status) {
+      where.jobs = {
+        some: { status: status },
+      };
+    }
+
+    // Get total count for pagination
+    const totalCount = await prisma.device.count({ where });
+
+    // Get devices with pagination
     const devices = await prisma.device.findMany({
       where,
       include: {
-        jobs: true,
+        jobs: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            comment: true,
+            updatedAt: true,
+          },
+        },
       },
+      orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+      skip,
+      take: limitNum,
     });
+
+    // Get subordinates (this could also be paginated if needed)
     const subordinates = await prisma.user.findMany({
       where: { superiorId: parseInt(userId) },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
     });
-    res.json({ devices, subordinates });
+
+    res.json({
+      devices,
+      subordinates,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: totalCount,
+        pages: Math.ceil(totalCount / limitNum),
+        hasNext: pageNum < Math.ceil(totalCount / limitNum),
+        hasPrev: pageNum > 1,
+      },
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch devices" });
@@ -27,7 +94,6 @@ exports.createDevice = async (req, res) => {
       serialNumber,
       name,
       type,
-      subtype,
       siteId,
       attributes,
       siteSupervisorId,
@@ -43,7 +109,6 @@ exports.createDevice = async (req, res) => {
         serialNumber,
         name,
         type,
-        subtype,
         siteId: parseInt(siteId),
         createdBy: userId,
         attributes,
@@ -89,7 +154,6 @@ exports.updateDevice = async (req, res) => {
     const {
       name,
       type,
-      subtype,
       attributes,
       siteSupervisorId,
       assignedTo,
@@ -106,7 +170,6 @@ exports.updateDevice = async (req, res) => {
         data: {
           name,
           type,
-          subtype,
           attributes,
           priority,
           targetDate: targetDate ? new Date(targetDate) : null,
@@ -280,5 +343,197 @@ exports.deleteJob = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to delete job" });
+  }
+};
+
+// Bulk create devices from Excel import
+exports.bulkCreateDevices = async (req, res) => {
+  try {
+    const { devices, siteId } = req.body;
+    const { userId } = req.user;
+
+    if (!devices || !Array.isArray(devices) || devices.length === 0) {
+      return res.status(400).json({ error: "Devices array is required" });
+    }
+
+    // Verify user has permission to create devices for this site
+    // const site = await prisma.site.findFirst({
+    //   where: {
+    //     id: parseInt(siteId),
+    //     siteInChargeId: parseInt(userId),
+    //   },
+    // });
+
+    // if (!site) {
+    //   return res
+    //     .status(403)
+    //     .json({ error: "Not authorized to create devices for this site" });
+    // }
+
+    // Validate devices data
+    const validationErrors = [];
+    devices.forEach((device, index) => {
+      if (!device.serialNumber) {
+        validationErrors.push(`Device ${index + 1}: Serial number is required`);
+      }
+      if (!device.name) {
+        validationErrors.push(`Device ${index + 1}: Name is required`);
+      }
+      if (!device.type) {
+        validationErrors.push(`Device ${index + 1}: Type is required`);
+      }
+    });
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        error: "Validation failed",
+        details: validationErrors,
+      });
+    }
+
+    // Check for duplicate serial numbers
+    const serialNumbers = devices.map((d) => d.serialNumber);
+    const existingDevices = await prisma.device.findMany({
+      where: {
+        serialNumber: { in: serialNumbers },
+      },
+      select: { serialNumber: true },
+    });
+
+    const existingSerials = existingDevices.map((d) => d.serialNumber);
+    const duplicates = serialNumbers.filter((sn) =>
+      existingSerials.includes(sn)
+    );
+
+    if (duplicates.length > 0) {
+      return res.status(400).json({
+        error: "Duplicate serial numbers found",
+        duplicates,
+      });
+    }
+
+    // Optimized bulk creation with batch operations
+    const createdDevices = await prisma.$transaction(async (tx) => {
+      // Prepare all device data for batch creation
+      const deviceDataArray = devices.map((deviceData) => ({
+        serialNumber: deviceData.serialNumber,
+        name: deviceData.name,
+        type: deviceData.type,
+        priority: deviceData.priority || "MEDIUM",
+        targetDate: deviceData.targetDate
+          ? new Date(deviceData.targetDate)
+          : null,
+        siteId: parseInt(siteId),
+        siteSupervisorId: deviceData.siteSupervisorId
+          ? parseInt(deviceData.siteSupervisorId)
+          : null,
+        assignedTo: deviceData.assignedTo
+          ? parseInt(deviceData.assignedTo)
+          : null,
+        attributes: deviceData.attributes || {},
+        createdBy: parseInt(userId),
+      }));
+
+      // Batch create all devices
+      await tx.device.createMany({
+        data: deviceDataArray,
+        skipDuplicates: true, // Skip duplicates instead of failing
+      });
+
+      // Get the created devices with their IDs
+      const devicesWithIds = await tx.device.findMany({
+        where: {
+          siteId: parseInt(siteId),
+          serialNumber: { in: devices.map((d) => d.serialNumber) },
+        },
+        select: { id: true, serialNumber: true },
+      });
+
+      // Create a map for quick lookup
+      const deviceMap = new Map(
+        devicesWithIds.map((d) => [d.serialNumber, d.id])
+      );
+
+      // Prepare all job data for batch creation
+      const jobDataArray = [];
+      devices.forEach((deviceData) => {
+        if (deviceData.jobs && Array.isArray(deviceData.jobs)) {
+          const deviceId = deviceMap.get(deviceData.serialNumber);
+          if (deviceId) {
+            deviceData.jobs.forEach((jobData) => {
+              jobDataArray.push({
+                name: jobData.name,
+                status: "IN_PROGRESS",
+                deviceId: deviceId,
+              });
+            });
+          }
+        }
+      });
+
+      // Batch create all jobs
+      if (jobDataArray.length > 0) {
+        await tx.job.createMany({
+          data: jobDataArray,
+        });
+      }
+
+      return devicesWithIds;
+    });
+
+    res.json({
+      message: `Successfully created ${createdDevices.length} devices`,
+      devices: createdDevices,
+      count: createdDevices.length,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to create devices" });
+  }
+};
+
+// Get unique device types for a specific site
+exports.getDeviceTypesBySite = async (req, res) => {
+  try {
+    const { siteId } = req.params;
+    const { userId } = req.user;
+
+    // Verify user has access to this site
+    const site = await prisma.site.findFirst({
+      where: {
+        id: parseInt(siteId),
+        OR: [
+          { siteInChargeId: parseInt(userId) },
+          { users: { some: { id: parseInt(userId) } } },
+        ],
+      },
+    });
+
+    if (!site) {
+      return res
+        .status(403)
+        .json({ error: "Not authorized to access this site" });
+    }
+
+    // Get unique device types for the site using the composite index
+    const deviceTypes = await prisma.device.findMany({
+      where: {
+        siteId: parseInt(siteId),
+      },
+      select: {
+        type: true,
+      },
+      distinct: ["type"],
+    });
+
+    res.json({
+      siteId: parseInt(siteId),
+      siteName: site.name,
+      deviceTypes: deviceTypes,
+      totalTypes: deviceTypes.length,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch device types" });
   }
 };

@@ -10,6 +10,8 @@ const jobRoutes = require("../routes/jobs");
 const dashboardRoutes = require("../routes/dashboard");
 const resourcesRouter = require("../routes/resources");
 const constraintRoutes = require("../routes/constraints");
+const presdJobRoutes = require("../routes/presdJobs");
+const manpowerRoutes = require("../routes/manpower");
 
 const app = express();
 
@@ -25,6 +27,8 @@ app.use("/api/jobs", jobRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/resources", resourcesRouter);
 app.use("/api/constraints", constraintRoutes);
+app.use("/api/presd-jobs", presdJobRoutes);
+app.use("/api/manpower", manpowerRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));

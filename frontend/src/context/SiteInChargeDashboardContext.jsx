@@ -29,8 +29,16 @@ export const SiteInChargeDashboardProvider = ({ siteId, children }) => {
     devices: [],
     users: [],
     deviceTypes: [],
-    deviceSubtypes: [],
+    statusCounts: [],
     site: null,
+    pagination: {
+      currentPage: 1,
+      totalPages: 1,
+      totalDevices: 0,
+      hasNextPage: false,
+      hasPrevPage: false,
+      limit: 10,
+    },
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -38,6 +46,7 @@ export const SiteInChargeDashboardProvider = ({ siteId, children }) => {
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
     setError("");
+
     try {
       const res = await dashboardAPI.siteInChargeDashboard(siteId);
 
@@ -45,7 +54,7 @@ export const SiteInChargeDashboardProvider = ({ siteId, children }) => {
         devices: res.data.devices || [],
         users: res.data.users || [],
         deviceTypes: res.data.deviceTypes || [],
-        deviceSubtypes: res.data.deviceSubtypes || [],
+        statusCounts: res.data.statusCounts || [],
         site: res.data,
       });
     } catch (err) {
@@ -62,6 +71,10 @@ export const SiteInChargeDashboardProvider = ({ siteId, children }) => {
   // Device mutations
   const addDevice = async (deviceData) => {
     await devicesAPI.createDevice(deviceData);
+    await fetchDashboard();
+  };
+  const bulkAddDevices = async (devicesData, siteId) => {
+    await devicesAPI.bulkCreateDevices({ devices: devicesData, siteId });
     await fetchDashboard();
   };
   const editDevice = async (deviceId, deviceData) => {
@@ -122,6 +135,7 @@ export const SiteInChargeDashboardProvider = ({ siteId, children }) => {
         refetch: fetchDashboard,
         // Mutations
         addDevice,
+        bulkAddDevices,
         editDevice,
         deleteDevice,
         addJob,

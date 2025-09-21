@@ -182,11 +182,6 @@ async function main() {
   console.log("Created sample resources");
 
   // Insert 30 Heat Exchanger devices for site 1
-  const heatExchangerSubtypes = [
-    { code: "UT", name: "U Tube" },
-    { code: "FX", name: "Fixed" },
-    { code: "FL", name: "Floating" },
-  ];
   const jobNames = [
     "blinding",
     "channel and floating head dome",
@@ -201,60 +196,72 @@ async function main() {
     "deblinding",
   ];
   let deviceCount = 1;
-  for (const subtype of heatExchangerSubtypes) {
-    for (let i = 1; i <= 10; i++) {
-      const serial = `HE-${subtype.code}-${String(i).padStart(3, "0")}`;
-      const device = await prisma.device.create({
-        data: {
-          serialNumber: serial,
-          name: `Heat Exchanger ${subtype.name} ${i}`,
-          type: "Heat Exchanger",
-          subtype: subtype.name,
-          siteId: site1.id,
-          createdBy: siteInCharge1.id,
-          priority:
-            deviceCount % 4 === 0
-              ? DevicePriority.EXTREME
-              : deviceCount % 3 === 0
-              ? DevicePriority.HIGH
-              : deviceCount % 2 === 0
-              ? DevicePriority.MEDIUM
-              : DevicePriority.LOW,
-          targetDate:
-            deviceCount % 3 === 0
-              ? new Date(Date.now() + deviceCount * 24 * 60 * 60 * 1000)
-              : null, // Some devices have target dates
-          attributes: {
-            no_of_tubes: 100 + i,
-            exchanger_length: `${5 + i * 0.1} m`,
-            tube_bundle_length: `${4 + i * 0.1} m`,
-            tube_bundle_weight: `${1000 + i * 10} kg`,
-            exchanger_weight: `${2000 + i * 10} kg`,
-            location: `Bay ${Math.ceil(i / 2)}`,
-          },
+  for (let i = 1; i <= 30; i++) {
+    const serial = `HE-${String(i).padStart(3, "0")}`;
+    const device = await prisma.device.create({
+      data: {
+        serialNumber: serial,
+        name: `Heat Exchanger ${i}`,
+        type: "Heat Exchanger",
+        siteId: site1.id,
+        createdBy: siteInCharge1.id,
+        priority:
+          deviceCount % 4 === 0
+            ? DevicePriority.EXTREME
+            : deviceCount % 3 === 0
+            ? DevicePriority.HIGH
+            : deviceCount % 2 === 0
+            ? DevicePriority.MEDIUM
+            : DevicePriority.LOW,
+        targetDate:
+          deviceCount % 3 === 0
+            ? new Date(Date.now() + deviceCount * 24 * 60 * 60 * 1000)
+            : null, // Some devices have target dates
+        attributes: {
+          no_of_tubes: 100 + i,
+          exchanger_length: `${5 + i * 0.1} m`,
+          tube_bundle_length: `${4 + i * 0.1} m`,
+          tube_bundle_weight: `${1000 + i * 10} kg`,
+          exchanger_weight: `${2000 + i * 10} kg`,
+          location: `Bay ${Math.ceil(i / 2)}`,
         },
-      });
-      // Create jobs with some constraints
-      const jobsData = jobNames.map((name, index) => ({
-        deviceId: device.id,
-        name,
-        status:
-          index === 0 && deviceCount % 5 === 0
-            ? JobStatus.CONSTRAINT
-            : JobStatus.IN_PROGRESS,
-        comment:
-          index === 0 && deviceCount % 5 === 0
-            ? "Equipment malfunction - waiting for replacement parts"
-            : null,
-        updatedBy:
-          index === 0 && deviceCount % 5 === 0 ? clusterSupervisor1.id : null,
-      }));
+      },
+    });
+    // Create jobs with mixed statuses
+    const jobsData = jobNames.map((name, index) => {
+      let status = JobStatus.PENDING; // Default to PENDING
+      let comment = null;
+      let updatedBy = null;
 
-      await prisma.job.createMany({
-        data: jobsData,
-      });
-      deviceCount++;
-    }
+      // Some jobs are completed (first few jobs of some devices)
+      if (index < 3 && deviceCount % 8 === 0) {
+        status = JobStatus.COMPLETED;
+      }
+      // Some jobs are in progress (middle jobs of some devices)
+      else if (index >= 3 && index < 6 && deviceCount % 6 === 0) {
+        status = JobStatus.IN_PROGRESS;
+      }
+      // Some jobs have constraints (first job of some devices)
+      else if (index === 0 && deviceCount % 5 === 0) {
+        status = JobStatus.CONSTRAINT;
+        comment = "Equipment malfunction - waiting for replacement parts";
+        updatedBy = clusterSupervisor1.id;
+      }
+
+      return {
+        deviceId: device.id,
+        deviceType: device.type,
+        name,
+        status,
+        comment,
+        updatedBy,
+      };
+    });
+
+    await prisma.job.createMany({
+      data: jobsData,
+    });
+    deviceCount++;
   }
 
   console.log("Created sample jobs for all devices");
@@ -279,7 +286,6 @@ async function main() {
         serialNumber: serial,
         name: `Vessel ${i}`,
         type: "Vessel",
-        subtype: null,
         siteId: site1.id,
         createdBy: siteInCharge1.id,
         priority:
@@ -301,20 +307,36 @@ async function main() {
         },
       },
     });
-    // Create jobs with some constraints
-    const vesselJobsData = vesselJobNames.map((name, index) => ({
-      deviceId: device.id,
-      name,
-      status:
-        index === 2 && i % 7 === 0
-          ? JobStatus.CONSTRAINT
-          : JobStatus.IN_PROGRESS,
-      comment:
-        index === 2 && i % 7 === 0
-          ? "Safety inspection required - access restricted"
-          : null,
-      updatedBy: index === 2 && i % 7 === 0 ? clusterSupervisor2.id : null,
-    }));
+    // Create jobs with mixed statuses
+    const vesselJobsData = vesselJobNames.map((name, index) => {
+      let status = JobStatus.PENDING; // Default to PENDING
+      let comment = null;
+      let updatedBy = null;
+
+      // Some jobs are completed (first few jobs of some vessels)
+      if (index < 2 && i % 9 === 0) {
+        status = JobStatus.COMPLETED;
+      }
+      // Some jobs are in progress (middle jobs of some vessels)
+      else if (index >= 2 && index < 5 && i % 7 === 0) {
+        status = JobStatus.IN_PROGRESS;
+      }
+      // Some jobs have constraints (third job of some vessels)
+      else if (index === 2 && i % 7 === 0) {
+        status = JobStatus.CONSTRAINT;
+        comment = "Safety inspection required - access restricted";
+        updatedBy = clusterSupervisor2.id;
+      }
+
+      return {
+        deviceId: device.id,
+        deviceType: device.type,
+        name,
+        status,
+        comment,
+        updatedBy,
+      };
+    });
 
     await prisma.job.createMany({
       data: vesselJobsData,
@@ -345,7 +367,6 @@ async function main() {
         serialNumber: serial,
         name: `Column ${i}`,
         type: "Column",
-        subtype: null,
         siteId: site1.id,
         createdBy: siteInCharge1.id,
         priority:
@@ -369,20 +390,36 @@ async function main() {
         },
       },
     });
-    // Create jobs with some constraints
-    const columnJobsData = columnJobNames.map((name, index) => ({
-      deviceId: device.id,
-      name,
-      status:
-        index === 5 && i % 6 === 0
-          ? JobStatus.CONSTRAINT
-          : JobStatus.IN_PROGRESS,
-      comment:
-        index === 5 && i % 6 === 0
-          ? "Material shortage - waiting for delivery"
-          : null,
-      updatedBy: index === 5 && i % 6 === 0 ? clusterSupervisor3.id : null,
-    }));
+    // Create jobs with mixed statuses
+    const columnJobsData = columnJobNames.map((name, index) => {
+      let status = JobStatus.PENDING; // Default to PENDING
+      let comment = null;
+      let updatedBy = null;
+
+      // Some jobs are completed (first few jobs of some columns)
+      if (index < 4 && i % 10 === 0) {
+        status = JobStatus.COMPLETED;
+      }
+      // Some jobs are in progress (middle jobs of some columns)
+      else if (index >= 4 && index < 8 && i % 8 === 0) {
+        status = JobStatus.IN_PROGRESS;
+      }
+      // Some jobs have constraints (sixth job of some columns)
+      else if (index === 5 && i % 6 === 0) {
+        status = JobStatus.CONSTRAINT;
+        comment = "Material shortage - waiting for delivery";
+        updatedBy = clusterSupervisor2.id;
+      }
+
+      return {
+        deviceId: device.id,
+        deviceType: device.type,
+        name,
+        status,
+        comment,
+        updatedBy,
+      };
+    });
 
     await prisma.job.createMany({
       data: columnJobsData,

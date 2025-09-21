@@ -11,7 +11,7 @@ const RegisterForm = () => {
     password: "",
     confirmPassword: "",
     phone: "",
-    superiorId: "",
+    superiorEmail: "",
     role: ROLES.SITE_SUPERVISOR,
   });
   const [loading, setLoading] = useState(false);
@@ -39,14 +39,13 @@ const RegisterForm = () => {
       setLoading(false);
       return;
     }
-    if (!formData.superiorId) {
-      setError("Superior ID is required");
+    if (!formData.superiorEmail) {
+      setError("Superior email is required");
       setLoading(false);
       return;
     }
 
     const { confirmPassword, ...registerData } = formData;
-    registerData.superiorId = parseInt(registerData.superiorId, 10);
     const result = await register(registerData);
 
     if (result.success) {
@@ -144,20 +143,20 @@ const RegisterForm = () => {
 
             <div>
               <label
-                htmlFor="superiorId"
+                htmlFor="superiorEmail"
                 className="block text-sm font-medium text-gray-700"
               >
-                Superior ID
+                Superior Email
               </label>
               <input
-                id="superiorId"
-                name="superiorId"
-                type="number"
+                id="superiorEmail"
+                name="superiorEmail"
+                type="email"
                 required
-                value={formData.superiorId}
+                value={formData.superiorEmail}
                 onChange={handleChange}
                 className="input-field mt-1"
-                placeholder="Enter your superior's user ID"
+                placeholder="Enter your superior's email address"
               />
             </div>
 

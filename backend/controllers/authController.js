@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 exports.register = async (req, res) => {
   try {
-    const { email, password, name, phone, superiorId, role } = req.body;
+    const { email, password, name, phone, superiorEmail, role } = req.body;
     if (!email || !password || !name) {
       return res.status(400).json({ error: "Missing required fields" });
     }
@@ -24,6 +24,20 @@ exports.register = async (req, res) => {
     if (existing) {
       return res.status(409).json({ error: "Email already registered" });
     }
+
+    // Look up superior by email if provided
+    let superiorId = null;
+    if (superiorEmail) {
+      const superior = await prisma.user.findUnique({
+        where: { email: superiorEmail },
+        select: { id: true, role: true },
+      });
+      if (!superior) {
+        return res.status(400).json({ error: "Superior email not found" });
+      }
+      superiorId = superior.id;
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {

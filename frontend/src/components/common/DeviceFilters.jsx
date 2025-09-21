@@ -6,7 +6,6 @@ const DeviceFilters = ({
   onFilterChange,
   onClearFilters,
   deviceTypes = [],
-  deviceSubtypes = [],
   siteSupervisors = [],
   clusterSupervisors = [],
 }) => {
@@ -62,8 +61,9 @@ const DeviceFilters = ({
             onChange={(e) => onFilterChange("status", e.target.value)}
           >
             <option value="">All</option>
-            <option value="COMPLETED">Completed</option>
+            <option value="PENDING">Pending</option>
             <option value="IN_PROGRESS">In Progress</option>
+            <option value="COMPLETED">Completed</option>
             <option value="CONSTRAINT">Constraint</option>
             <option value="DELAYED">Delayed</option>
           </select>
@@ -82,24 +82,6 @@ const DeviceFilters = ({
             {deviceTypes.map((type) => (
               <option key={type} value={type}>
                 {type}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Device Subtype
-          </label>
-          <select
-            className="input-field"
-            value={filters.subtype}
-            onChange={(e) => onFilterChange("subtype", e.target.value)}
-          >
-            <option value="">All</option>
-            {deviceSubtypes.map((subtype) => (
-              <option key={subtype} value={subtype}>
-                {subtype}
               </option>
             ))}
           </select>

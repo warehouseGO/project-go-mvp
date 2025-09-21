@@ -8,7 +8,7 @@ import {
 import LoadingSpinner from "../components/common/LoadingSpinner";
 
 const SiteAnalyticsContent = () => {
-  const { site, devices, users, loading, error, deviceTypes, deviceSubtypes } =
+  const { site, devices, users, loading, error, deviceTypes } =
     useSiteInChargeDashboard();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -49,7 +49,6 @@ const SiteAnalyticsContent = () => {
         siteData={{ ...site, devices, users }}
         goToDevicesWithFilters={goToDevicesWithFilters}
         deviceTypes={deviceTypes}
-        deviceSubtypes={deviceSubtypes}
       />
     </div>
   );

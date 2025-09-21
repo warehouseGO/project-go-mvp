@@ -11,7 +11,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useConstraintReport } from "../../hooks/useConstraintReport";
 
 const SiteAnalyticsContent = ({ siteId }) => {
-  const { site, devices, users, loading, error, deviceTypes, deviceSubtypes } =
+  const { site, devices, users, loading, error, deviceTypes, statusCounts } =
     useSiteInChargeDashboard();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -66,7 +66,7 @@ const SiteAnalyticsContent = ({ siteId }) => {
         siteData={{ ...site, devices, users }}
         goToDevicesWithFilters={goToDevicesWithFilters}
         deviceTypes={deviceTypes}
-        deviceSubtypes={deviceSubtypes}
+        statusCounts={statusCounts}
       />
 
       <ConstraintReportModal

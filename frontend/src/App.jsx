@@ -20,6 +20,8 @@ import SiteDetails from "./pages/SiteDetails";
 import SiteAnalyticsPage from "./pages/SiteAnalyticsPage";
 import ResourceManagement from "./pages/ResourceManagement";
 import ResourceAnalyticsPage from "./pages/ResourceAnalyticsPage";
+import PreSDJobs from "./pages/PreSDJobs";
+import Manpower from "./pages/Manpower";
 import { ROLES } from "./utils/constants";
 
 const Layout = ({ children }) => {
@@ -118,6 +120,28 @@ const App = () => {
               <ProtectedRoute>
                 <Layout>
                   <SiteAnalyticsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/sites/:siteId/presd-jobs"
+            element={
+              <ProtectedRoute requiredRole={[ROLES.SITE_INCHARGE]}>
+                <Layout>
+                  <PreSDJobs />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/sites/:siteId/manpower"
+            element={
+              <ProtectedRoute requiredRole={[ROLES.SITE_INCHARGE]}>
+                <Layout>
+                  <Manpower />
                 </Layout>
               </ProtectedRoute>
             }

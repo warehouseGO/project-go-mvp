@@ -189,7 +189,7 @@ const OrganogramModal = ({ isOpen, onClose, users, ownerId }) => {
 };
 
 const SiteDetailsContent = () => {
-  const { devices, users, deviceTypes, deviceSubtypes, loading, error } =
+  const { devices, users, deviceTypes, loading, error } =
     useSiteInChargeDashboard();
   const [attributesModalOpen, setAttributesModalOpen] = useState(false);
   const [selectedDeviceAttributes, setSelectedDeviceAttributes] =
@@ -205,7 +205,6 @@ const SiteDetailsContent = () => {
   const filters = {
     status: searchParams.get("status") || "",
     type: searchParams.get("type") || "",
-    subtype: searchParams.get("subtype") || "",
     siteSupervisor: searchParams.get("siteSupervisor") || "",
     clusterSupervisor: searchParams.get("clusterSupervisor") || "",
   };
@@ -257,9 +256,6 @@ const SiteDetailsContent = () => {
   if (filters.type) {
     filtered = filtered.filter((device) => device.type === filters.type);
   }
-  if (filters.subtype) {
-    filtered = filtered.filter((device) => device.subtype === filters.subtype);
-  }
 
   const handleShowAttributes = (device) => {
     setSelectedDeviceAttributes(device || {});
@@ -310,7 +306,6 @@ const SiteDetailsContent = () => {
             onFilterChange={updateFilter}
             onClearFilters={() => setSearchParams({})}
             deviceTypes={deviceTypes}
-            deviceSubtypes={deviceSubtypes}
             siteSupervisors={siteSupervisors}
             clusterSupervisors={clusterSupervisors}
           />
