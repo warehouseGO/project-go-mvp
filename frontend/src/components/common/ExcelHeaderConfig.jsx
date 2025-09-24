@@ -15,7 +15,7 @@ const ExcelHeaderConfig = ({
 
   const handleNext = async () => {
     onHeaderRowCountChange(localHeaderRowCount);
-    onNext();
+    onNext(localHeaderRowCount);
   };
 
   const handleBack = () => {
@@ -53,26 +53,6 @@ const ExcelHeaderConfig = ({
             Most Excel files have 1-2 header rows. Nested headers (like merged
             cells) may require 2+ rows.
           </p>
-        </div>
-
-        <div className="bg-blue-50 p-4 rounded-md">
-          <h4 className="text-sm font-medium text-blue-900 mb-2">
-            Header Row Examples:
-          </h4>
-          <div className="text-xs text-blue-800 space-y-1">
-            <div>
-              <strong>1 Row:</strong> Simple headers like "Name", "Email",
-              "Phone"
-            </div>
-            <div>
-              <strong>2 Rows:</strong> Nested headers like "Personal Info"
-              spanning "Name" and "Email"
-            </div>
-            <div>
-              <strong>3+ Rows:</strong> Complex nested structures with multiple
-              levels
-            </div>
-          </div>
         </div>
       </div>
 

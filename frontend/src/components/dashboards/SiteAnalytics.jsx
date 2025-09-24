@@ -10,6 +10,10 @@ import {
   Legend,
 } from "chart.js";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { manpowerAPI } from "../../utils/api";
+import { generateSiteAnalyticsReport } from "../../utils/excelGenerator";
+import { ROLES } from "../../utils/constants";
 
 ChartJS.register(
   CategoryScale,
@@ -50,7 +54,9 @@ const SiteAnalytics = ({
   statusCounts = [],
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [typeFilter, setTypeFilter] = useState("");
+  const [exportLoading, setExportLoading] = useState(false);
 
   // Filtered devices (only by type, no status filter)
   const filteredDevices = useMemo(() => {
@@ -223,8 +229,100 @@ const SiteAnalytics = ({
     },
   };
 
+  // Export to Excel function
+  const handleExportToExcel = async () => {
+    if (!user?.siteId) return;
+
+    setExportLoading(true);
+    try {
+      // Get manpower data for today
+      const today = new Date().toISOString().split("T")[0];
+      const manpowerResponse = await manpowerAPI.getManpowerData(user.siteId, {
+        selectedDate: today,
+        includeAnalytics: true,
+      });
+
+      // Get Safety and TBT data for today
+      let safetyData = null;
+      let tbtData = null;
+
+      try {
+        const [safetyResponse, tbtResponse] = await Promise.all([
+          manpowerAPI.getSafety(user.siteId, { date: today }),
+          manpowerAPI.getTBT(user.siteId, { date: today }),
+        ]);
+        safetyData = safetyResponse.data;
+        tbtData = tbtResponse.data;
+      } catch (error) {
+        console.warn("Failed to fetch Safety/TBT data:", error);
+        // Continue without Safety/TBT data
+      }
+
+      // Generate Excel report
+      const blob = await generateSiteAnalyticsReport(
+        siteData,
+        manpowerResponse.data,
+        siteData.name || "Site",
+        safetyData,
+        tbtData
+      );
+
+      // Download the file
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${siteData.name || "Site"}_Analytics_${
+        new Date().toISOString().split("T")[0]
+      }.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error generating Excel report:", error);
+      alert("Failed to generate Excel report. Please try again.");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Export Button for Site In-Charge */}
+      {user?.role === ROLES.SITE_INCHARGE && (
+        <div className="flex justify-end">
+          <button
+            onClick={handleExportToExcel}
+            disabled={exportLoading}
+            className="btn-primary flex items-center gap-2"
+          >
+            {exportLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Generating...
+              </>
+            ) : (
+              <>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                Export to Excel
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div

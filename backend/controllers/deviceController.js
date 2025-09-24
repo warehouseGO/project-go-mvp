@@ -463,7 +463,7 @@ exports.bulkCreateDevices = async (req, res) => {
             deviceData.jobs.forEach((jobData) => {
               jobDataArray.push({
                 name: jobData.name,
-                status: "IN_PROGRESS",
+
                 deviceId: deviceId,
               });
             });

@@ -8,6 +8,8 @@ const {
   deleteManpowerEntry,
   bulkUpdateManpower,
 } = require("../controllers/manpowerController");
+const safetyController = require("../controllers/safetyController");
+const tbtController = require("../controllers/tbtController");
 const auth = require("../middleware/auth");
 const authorize = require("../middleware/authorize");
 
@@ -57,6 +59,34 @@ router.post(
   auth,
   authorize(["SITE_INCHARGE", "OWNER"]),
   bulkUpdateManpower
+);
+
+// Safety endpoints
+router.get(
+  "/sites/:siteId/safety",
+  auth,
+  authorize(["SITE_INCHARGE", "OWNER"]),
+  safetyController.getSafetyByDate
+);
+router.post(
+  "/sites/:siteId/safety",
+  auth,
+  authorize(["SITE_INCHARGE", "OWNER"]),
+  safetyController.upsertSafety
+);
+
+// TBT endpoints
+router.get(
+  "/sites/:siteId/tbt",
+  auth,
+  authorize(["SITE_INCHARGE", "OWNER"]),
+  tbtController.getTBTByDate
+);
+router.post(
+  "/sites/:siteId/tbt",
+  auth,
+  authorize(["SITE_INCHARGE", "OWNER"]),
+  tbtController.upsertTBT
 );
 
 module.exports = router;

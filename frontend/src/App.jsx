@@ -128,7 +128,7 @@ const App = () => {
           <Route
             path="/sites/:siteId/presd-jobs"
             element={
-              <ProtectedRoute requiredRole={[ROLES.SITE_INCHARGE]}>
+              <ProtectedRoute requiredRole={[ROLES.OWNER, ROLES.SITE_INCHARGE]}>
                 <Layout>
                   <PreSDJobs />
                 </Layout>
@@ -139,7 +139,7 @@ const App = () => {
           <Route
             path="/sites/:siteId/manpower"
             element={
-              <ProtectedRoute requiredRole={[ROLES.SITE_INCHARGE]}>
+              <ProtectedRoute requiredRole={[ROLES.OWNER, ROLES.SITE_INCHARGE]}>
                 <Layout>
                   <Manpower />
                 </Layout>

@@ -20,6 +20,7 @@ const DevicesContent = () => {
     devices,
     deviceTypes,
     users,
+    site,
     loading,
     error,
     addDevice,

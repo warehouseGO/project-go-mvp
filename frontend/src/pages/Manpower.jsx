@@ -5,6 +5,7 @@ import api from "../utils/api";
 import ManpowerAnalytics from "../components/common/ManpowerAnalytics";
 import ManpowerEntryForm from "../components/common/ManpowerEntryForm";
 import ManpowerDataTable from "../components/common/ManpowerDataTable";
+import ManpowerSafetyTBTModal from "../components/common/ManpowerSafetyTBTModal";
 
 const Manpower = () => {
   const { siteId } = useParams();
@@ -28,6 +29,7 @@ const Manpower = () => {
     endDate: new Date().toISOString().split("T")[0],
   });
   const [selectedDesignation, setSelectedDesignation] = useState("");
+  const [showSafetyTbt, setShowSafetyTbt] = useState(false);
 
   // Fetch all manpower data in a single optimized call
   const fetchManpowerData = async () => {
@@ -167,6 +169,14 @@ const Manpower = () => {
             Track and analyze daily manpower for different designations
           </p>
         </div>
+        <div className="mt-4 mb-4 flex justify-end">
+          <button
+            className="btn-primary"
+            onClick={() => setShowSafetyTbt(true)}
+          >
+            Add Safety / TBT
+          </button>
+        </div>
 
         {/* Date Range and Designation Filter */}
         <div className="mb-6 bg-white p-4 rounded-lg shadow">
@@ -245,6 +255,15 @@ const Manpower = () => {
           />
         </div>
       </div>
+      <ManpowerSafetyTBTModal
+        isOpen={showSafetyTbt}
+        onClose={(saved) => {
+          setShowSafetyTbt(false);
+          if (saved) fetchManpowerData();
+        }}
+        siteId={siteId}
+        defaultDate={selectedDate}
+      />
     </div>
   );
 };

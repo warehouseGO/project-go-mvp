@@ -51,13 +51,14 @@ const ExcelImportTab = ({ onClose, onSubmit, loading = false }) => {
     setHeaderRowCount(count);
   };
 
-  const handleHeaderNext = async () => {
+  const handleHeaderNext = async (headerRowCountToUse) => {
     if (!excelFile || !selectedSheet) return;
 
     try {
+      //   console.log(headerRowCount);
       const sheetData = await ExcelReader.readSheet(excelFile, selectedSheet, {
         nestedHeaders: true,
-        headerRowCount: headerRowCount,
+        headerRowCount: headerRowCountToUse,
       });
 
       setParsedData(sheetData.data.objects);

@@ -1,7 +1,7 @@
 import axios from "axios";
 
-// const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
-const API_BASE_URL = "https://gobackendnew.onrender.com/api";
+const API_BASE_URL = `https://gobackendnew.onrender.com/api`;
+// const API_BASE_URL = "http://localhost:3000/api";
 console.log(import.meta.env.VITE_API_URL);
 // Create axios instance with base configuration
 const api = axios.create({
@@ -134,6 +134,26 @@ export const resourcesAPI = {
   deleteResource: (id) => api.delete(`/resources/${id}`),
   allocateResources: (data) => api.post("/resources/allocate", data),
   updateResourceStatus: (id, data) => api.put(`/resources/${id}/status`, data),
+};
+
+// Manpower API calls
+export const manpowerAPI = {
+  getManpowerData: (siteId, params) =>
+    api.get(`/manpower/sites/${siteId}/data`, { params }),
+  createManpowerEntry: (siteId, data) =>
+    api.post(`/manpower/sites/${siteId}/entries`, data),
+  updateManpowerEntry: (entryId, data) =>
+    api.put(`/manpower/entries/${entryId}`, data),
+  deleteManpowerEntry: (entryId) => api.delete(`/manpower/entries/${entryId}`),
+  bulkUpdateManpower: (siteId, data) =>
+    api.post(`/manpower/sites/${siteId}/bulk`, data),
+  getSafety: (siteId, params) =>
+    api.get(`/manpower/sites/${siteId}/safety`, { params }),
+  upsertSafety: (siteId, data) =>
+    api.post(`/manpower/sites/${siteId}/safety`, data),
+  getTBT: (siteId, params) =>
+    api.get(`/manpower/sites/${siteId}/tbt`, { params }),
+  upsertTBT: (siteId, data) => api.post(`/manpower/sites/${siteId}/tbt`, data),
 };
 
 export default api;

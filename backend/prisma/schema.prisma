@@ -107,6 +107,8 @@ model Site {
   resources Resource[]
   preSDJobs PreSDJob[]
   manpower  Manpower[]
+  safety    Safety[]
+  tbtTopics TBTTopic[]
 
   @@map("sites")
 }
@@ -242,4 +244,43 @@ model Manpower {
   @@index([siteId, designation]) // Composite index for site + designation queries
   @@index([createdBy]) // Index for user-specific queries
   @@unique([siteId, designation, date]) // Prevent duplicate entries for same designation on same date
+}
+
+// Safety statistics per site per date
+model Safety {
+  id              Int      @id @default(autoincrement())
+  siteId          Int      @map("site_id")
+  date            DateTime @db.Date
+  nearmiss        Int      @default(0)
+  firstaid        Int      @default(0)
+  lti             Int      @default(0)
+  fireincidents   Int      @default(0)
+  auditsConducted Int      @default(0) @map("audits_conducted")
+  incidentReport  Int      @default(0) @map("incident_report")
+
+  // Relations
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@map("safety")
+  @@unique([siteId, date])
+  @@index([siteId, date])
+}
+
+// Toolbox Talk (TBT) topics/observations per site per date
+model TBTTopic {
+  id                          Int      @id @default(autoincrement())
+  siteId                      Int      @map("site_id")
+  date                        DateTime @db.Date
+  specificPPE                 String?  @map("specific_ppe")
+  housekeeping                String?
+  plantEquipmentSafety        String?  @map("plant_equipment_safety")
+  workingUnderSuspendedLoad   String?  @map("working_under_suspended_load")
+  importantOfEyeShower        String?  @map("important_of_eye_shower")
+
+  // Relations
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@map("tbt_topics")
+  @@unique([siteId, date])
+  @@index([siteId, date])
 }

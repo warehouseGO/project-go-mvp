@@ -76,7 +76,12 @@ exports.siteInChargeDashboard = async (req, res) => {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      // Order by priority (desc) then recency
+      orderBy: [
+        { priority: "desc" },
+        { updatedAt: "desc" },
+        { createdAt: "desc" },
+      ],
     });
 
     // Get unique device types for filtering
