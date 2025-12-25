@@ -75,6 +75,17 @@ const DeviceTable = ({
     return "PENDING";
   };
 
+  // Get concatenated constraint comments from all jobs with CONSTRAINT status
+  const getConstraintComments = (device) => {
+    if (!device.jobs || device.jobs.length === 0) return null;
+
+    const constraintComments = device.jobs
+      .filter((job) => job.status === JOB_STATUS.CONSTRAINT && job.comment)
+      .map((job) => job.comment);
+
+    return constraintComments.length > 0 ? constraintComments.join("; ") : null;
+  };
+
   const renderDefaultJobTable = (device) => (
     <div className="overflow-x-auto">
       <table className="min-w-full">
@@ -129,6 +140,7 @@ const DeviceTable = ({
       headers.push({ key: "assignedTo", label: "Assigned To" });
     }
     headers.push({ key: "status", label: "Status" });
+    headers.push({ key: "comments", label: "Comments" });
     headers.push({ key: "attributes", label: "Attributes" });
     headers.push({ key: "jobs", label: "Jobs" });
     return headers;
@@ -137,7 +149,7 @@ const DeviceTable = ({
   const getColSpan = () => {
     let span = 5; // serial, name, type, priority, targetDate
     if (showAssignedTo) span += 1;
-    span += 3; // status, attributes, jobs
+    span += 4; // status, comments, attributes, jobs
     if (enableMultiSelect) span += 1;
     return span;
   };
@@ -266,6 +278,22 @@ const DeviceTable = ({
                 )}
                 <td className="px-4 py-3">
                   <StatusBadge status={getDeviceStatus(device)} />
+                </td>
+                <td className="px-4 py-3 text-sm max-w-xs">
+                  {(() => {
+                    const comments = getConstraintComments(device);
+                    if (!comments) {
+                      return <span className="text-gray-400 italic">-</span>;
+                    }
+                    return (
+                      <span
+                        className="text-red-600 block truncate"
+                        title={comments}
+                      >
+                        {comments}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-3">
                   {showActions && onShowAttributes && (

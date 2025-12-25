@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import ManpowerExcelImport from "./ManpowerExcelImport";
 
 const ManpowerEntryForm = ({
   onSubmit,
@@ -15,6 +16,7 @@ const ManpowerEntryForm = ({
   });
 
   const [bulkMode, setBulkMode] = useState(false);
+  const [showExcelImport, setShowExcelImport] = useState(false);
   const [bulkData, setBulkData] = useState({});
   const [errors, setErrors] = useState({});
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -173,6 +175,12 @@ const ManpowerEntryForm = ({
     });
   };
 
+  // Handle Excel import
+  const handleExcelImport = (date, entries) => {
+    onBulkUpdate(date, entries);
+    setShowExcelImport(false);
+  };
+
   return (
     <div className="bg-white p-6 rounded-lg shadow">
       <div className="flex items-center justify-between mb-6">
@@ -199,6 +207,13 @@ const ManpowerEntryForm = ({
             }`}
           >
             Bulk Update
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowExcelImport(true)}
+            className="px-3 py-1 text-sm rounded-md bg-green-600 text-white hover:bg-green-700"
+          >
+            Import Excel
           </button>
         </div>
       </div>
@@ -454,6 +469,15 @@ const ManpowerEntryForm = ({
           </div>
         </form>
       )}
+
+      {/* Excel Import Modal */}
+      <ManpowerExcelImport
+        isOpen={showExcelImport}
+        onClose={() => setShowExcelImport(false)}
+        onImport={handleExcelImport}
+        loading={loading}
+        selectedDate={selectedDate}
+      />
     </div>
   );
 };

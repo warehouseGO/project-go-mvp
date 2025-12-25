@@ -19,7 +19,7 @@ const ExcelImportTab = ({ onClose, onSubmit, loading = false }) => {
   const [transformedData, setTransformedData] = useState([]);
   const [fieldMappings, setFieldMappings] = useState({
     serialNumber: "",
-    equipmentTag: "",
+    equipmentTag: [], // Array for multi-field concatenation
     name: "",
     jobScopeFields: [],
     attributeFields: [],
@@ -85,6 +85,22 @@ const ExcelImportTab = ({ onClose, onSubmit, loading = false }) => {
     }));
   };
 
+  const handleEquipmentTagFieldToggle = (field) => {
+    setFieldMappings((prev) => ({
+      ...prev,
+      equipmentTag: prev.equipmentTag.includes(field)
+        ? prev.equipmentTag.filter((f) => f !== field)
+        : [...prev.equipmentTag, field],
+    }));
+  };
+
+  const handleEquipmentTagReorder = (newOrder) => {
+    setFieldMappings((prev) => ({
+      ...prev,
+      equipmentTag: newOrder,
+    }));
+  };
+
   const handleAttributeFieldToggle = (field) => {
     setFieldMappings((prev) => ({
       ...prev,
@@ -98,11 +114,7 @@ const ExcelImportTab = ({ onClose, onSubmit, loading = false }) => {
     if (parsedData.length === 0) return;
 
     const availableFields = Object.keys(parsedData[0]).filter(
-      (field) =>
-        field !== fieldMappings.serialNumber &&
-        field !== fieldMappings.equipmentTag &&
-        field !== fieldMappings.name &&
-        !fieldMappings.jobScopeFields.includes(field)
+      (field) => !fieldMappings.jobScopeFields.includes(field)
     );
 
     setFieldMappings((prev) => ({
@@ -124,8 +136,8 @@ const ExcelImportTab = ({ onClose, onSubmit, loading = false }) => {
     if (!fieldMappings.serialNumber) {
       newErrors.serialNumber = "Serial Number field is required";
     }
-    if (!fieldMappings.equipmentTag) {
-      newErrors.equipmentTag = "Equipment Tag field is required";
+    if (fieldMappings.equipmentTag.length === 0) {
+      newErrors.equipmentTag = "At least one Equipment Tag field is required";
     }
     if (!fieldMappings.name) {
       newErrors.name = "Name field is required";
@@ -151,8 +163,14 @@ const ExcelImportTab = ({ onClose, onSubmit, loading = false }) => {
     setFilteredRowCount(validRows.length);
 
     const transformed = validRows.map((row, index) => {
+      // Concatenate equipment tag fields with hyphen separator
+      const concatenatedTag = fieldMappings.equipmentTag
+        .map((field) => row[field])
+        .filter((val) => val !== undefined && val !== null && val !== "")
+        .join("-");
+
       const device = {
-        serialNumber: row[fieldMappings.equipmentTag] || `DEVICE_${index + 1}`,
+        serialNumber: concatenatedTag || `DEVICE_${index + 1}`,
         name: row[fieldMappings.name] || `Device ${index + 1}`,
         type: selectedSheet,
         priority: "MEDIUM",
@@ -209,7 +227,7 @@ const ExcelImportTab = ({ onClose, onSubmit, loading = false }) => {
     setTransformedData([]);
     setFieldMappings({
       serialNumber: "",
-      equipmentTag: "",
+      equipmentTag: [],
       name: "",
       jobScopeFields: [],
       attributeFields: [],
@@ -265,6 +283,8 @@ const ExcelImportTab = ({ onClose, onSubmit, loading = false }) => {
               parsedData={parsedData}
               fieldMappings={fieldMappings}
               onFieldMappingChange={handleFieldMappingChange}
+              onEquipmentTagFieldToggle={handleEquipmentTagFieldToggle}
+              onEquipmentTagReorder={handleEquipmentTagReorder}
               onJobScopeFieldToggle={handleJobScopeFieldToggle}
               onAttributeFieldToggle={handleAttributeFieldToggle}
               onSelectAllAttributes={handleSelectAllAttributes}

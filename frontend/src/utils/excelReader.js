@@ -364,6 +364,192 @@ class ExcelReader {
       return false;
     }
   }
+
+  /**
+   * Parse a cell reference (e.g., "A5") into column index and row index
+   * @param {string} cellRef - Cell reference like "A5", "B10", "AA1"
+   * @returns {Object} { col: number, row: number } (0-indexed)
+   */
+  static parseCellRef(cellRef) {
+    if (!cellRef || typeof cellRef !== "string") {
+      throw new Error("Invalid cell reference");
+    }
+
+    const match = cellRef.toUpperCase().match(/^([A-Z]+)(\d+)$/);
+    if (!match) {
+      throw new Error(`Invalid cell reference format: ${cellRef}`);
+    }
+
+    const colLetters = match[1];
+    const rowNumber = parseInt(match[2], 10);
+
+    // Convert column letters to 0-indexed number (A=0, B=1, ..., Z=25, AA=26, etc.)
+    let col = 0;
+    for (let i = 0; i < colLetters.length; i++) {
+      col = col * 26 + (colLetters.charCodeAt(i) - 64);
+    }
+    col -= 1; // Convert to 0-indexed
+
+    return {
+      col,
+      row: rowNumber - 1, // Convert to 0-indexed
+    };
+  }
+
+  /**
+   * Convert column index to column letter(s)
+   * @param {number} colIndex - 0-indexed column number
+   * @returns {string} Column letter(s) like "A", "B", "AA"
+   */
+  static colIndexToLetter(colIndex) {
+    let letter = "";
+    let temp = colIndex + 1;
+    while (temp > 0) {
+      const remainder = (temp - 1) % 26;
+      letter = String.fromCharCode(65 + remainder) + letter;
+      temp = Math.floor((temp - 1) / 26);
+    }
+    return letter;
+  }
+
+  /**
+   * Read value at a specific cell
+   * @param {File} file - Excel file
+   * @param {string} sheetName - Name of the sheet
+   * @param {string} cellRef - Cell reference like "A5"
+   * @returns {Promise<any>} Cell value
+   */
+  static async readCellValue(file, sheetName, cellRef) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+
+      if (!workbook.SheetNames.includes(sheetName)) {
+        throw new Error(`Sheet "${sheetName}" not found`);
+      }
+
+      const worksheet = workbook.Sheets[sheetName];
+      const cell = worksheet[cellRef.toUpperCase()];
+
+      return cell ? cell.v : null;
+    } catch (error) {
+      throw new Error(`Failed to read cell: ${error.message}`);
+    }
+  }
+
+  /**
+   * Read manpower data from Excel using cell references for headers
+   * Reads data from the row below the headers until designation is empty or "total"
+   * @param {File} file - Excel file
+   * @param {string} sheetName - Name of the sheet
+   * @param {Object} headerCells - Object with cell references for each header
+   * @param {string} headerCells.designation - Cell reference for Designation header (e.g., "A5")
+   * @param {string} headerCells.dayshift - Cell reference for Day Shift header (e.g., "B5")
+   * @param {string} headerCells.nightshift - Cell reference for Night Shift header (e.g., "C5")
+   * @returns {Promise<Array>} Array of manpower entries
+   */
+  static async readManpowerData(file, sheetName, headerCells) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+
+      if (!workbook.SheetNames.includes(sheetName)) {
+        throw new Error(`Sheet "${sheetName}" not found`);
+      }
+
+      const worksheet = workbook.Sheets[sheetName];
+
+      // Parse header cell references
+      const designationPos = this.parseCellRef(headerCells.designation);
+      const dayshiftPos = this.parseCellRef(headerCells.dayshift);
+      const nightshiftPos = this.parseCellRef(headerCells.nightshift);
+
+      // Validate all headers are on the same row
+      if (
+        designationPos.row !== dayshiftPos.row ||
+        designationPos.row !== nightshiftPos.row
+      ) {
+        throw new Error("All header cells must be on the same row");
+      }
+
+      const headerRow = designationPos.row;
+      const designationCol = this.colIndexToLetter(designationPos.col);
+      const dayshiftCol = this.colIndexToLetter(dayshiftPos.col);
+      const nightshiftCol = this.colIndexToLetter(nightshiftPos.col);
+
+      // Read data starting from the row below headers
+      const entries = [];
+      let currentRow = headerRow + 2; // +1 for 1-indexed, +1 for next row
+
+      while (true) {
+        // Read designation cell
+        const designationCell = worksheet[`${designationCol}${currentRow}`];
+        const designation = designationCell ? designationCell.v : null;
+
+        // Stop conditions: empty or "total"
+        if (
+          !designation ||
+          designation.toString().trim() === "" ||
+          designation.toString().toLowerCase().includes("total")
+        ) {
+          break;
+        }
+
+        // Read shift values
+        const dayshiftCell = worksheet[`${dayshiftCol}${currentRow}`];
+        const nightshiftCell = worksheet[`${nightshiftCol}${currentRow}`];
+
+        const dayshift = dayshiftCell ? parseInt(dayshiftCell.v) || 0 : 0;
+        const nightshift = nightshiftCell ? parseInt(nightshiftCell.v) || 0 : 0;
+
+        entries.push({
+          designation: designation.toString().trim(),
+          dayshift,
+          nightshift,
+        });
+
+        currentRow++;
+
+        // Safety limit to prevent infinite loops
+        if (currentRow > 10000) {
+          break;
+        }
+      }
+
+      return entries;
+    } catch (error) {
+      throw new Error(`Failed to read manpower data: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get raw data preview for a sheet (first N rows)
+   * @param {File} file - Excel file
+   * @param {string} sheetName - Name of the sheet
+   * @param {number} maxRows - Maximum rows to return (default 20)
+   * @returns {Promise<Array>} Array of arrays (raw data)
+   */
+  static async getSheetPreview(file, sheetName, maxRows = 20) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+
+      if (!workbook.SheetNames.includes(sheetName)) {
+        throw new Error(`Sheet "${sheetName}" not found`);
+      }
+
+      const worksheet = workbook.Sheets[sheetName];
+      const rawData = XLSX.utils.sheet_to_json(worksheet, {
+        header: 1,
+        defval: "",
+        raw: false,
+      });
+
+      return rawData.slice(0, maxRows);
+    } catch (error) {
+      throw new Error(`Failed to get sheet preview: ${error.message}`);
+    }
+  }
 }
 
 export default ExcelReader;
